@@ -2,13 +2,10 @@ import React, { useState } from "react";
 import axios from "axios";
 
 function App() {
-  const [jobRole, setJobRole] = useState("");
-  const [questions, setQuestions] = useState([]);
-
   const handleGenerateQuestion = async () => {
     try {
       console.log("first")
-      const response = await axios.post("http://localhost:5001/api/generate_question",
+      const response = await axios.post("http://localhost:5001/api/weather~~",
         {
           job_role: jobRole
         },
