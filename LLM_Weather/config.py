@@ -1,4 +1,15 @@
 import os
+from dotenv import load_dotenv
+
+# .env 파일 로드
+load_dotenv()
+
+# NAVER 검색 API 설정
+NAVER_CLIENT_ID = os.getenv("NAVER_CLIENT_ID")
+NAVER_CLIENT_SECRET = os.getenv("NAVER_CLIENT_SECRET")
+
+# TODO: GEMINI_API_KEY 환경 변수에서 가져온 후에 대해 코드 변경할 것
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 # OpenAI API Key (환경변수에서 가져오거나 직접 입력)
 GEMINI_API_KEY = "AIzaSyBh3ARBbmzbM6rxLm5FuFtZDjlFD2TtpTU"
