@@ -8,6 +8,9 @@ load_dotenv()
 NAVER_CLIENT_ID = os.getenv("NAVER_CLIENT_ID")
 NAVER_CLIENT_SECRET = os.getenv("NAVER_CLIENT_SECRET")
 
+# OPENAI API KEY 설정
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
 # TODO: GEMINI_API_KEY 환경 변수에서 가져온 후에 대해 코드 변경할 것
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
