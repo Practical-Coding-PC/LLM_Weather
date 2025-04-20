@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{ location }} 지역 뉴스 요약</title>
+    <style>
+        body {
+            align-items: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>{{ location }} 지역 뉴스 요약</h1>
+        {% if summaries %}
+        <ul>
+            {% for summary in summaries %}
+            <li>{{ summary }}</li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p>요약된 뉴스가 없습니다.</p>
+        {% endif %}
+        <br>
+        <a href="/">다른 지역 검색</a>
+    </div>
+</body>
+</html>

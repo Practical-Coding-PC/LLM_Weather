@@ -4,8 +4,29 @@ import config
 import re
 
 from openai import OpenAI
+from flask import Flask, render_template, request
 
-def get_naver_news_url(location = "서울", display = 10, start = 1) -> dict:
+app = Flask(__name__)
+
+@app.route('/')
+def index():
+    return """
+        <h1>네이버 뉴스 요약</h1>
+        <form method="GET" action="/news">
+            <label for="location">지역:</label>
+            <input type="text" id="location" name="location" value="서울"><br><br>
+            <input type="submit" value="뉴스 요약 보기">
+        </form>
+    """
+
+@app.route('/news')
+def display_news():
+    location = request.args.get('location', '서울')
+    summary_contents = get_naver_news_crawler(location)
+    return render_template('news_list.html', summaries=summary_contents, location=location)
+
+
+def get_naver_news_url(location = "서울", display = 5, start = 1) -> dict:
     """
     네이버 뉴스 검색 API를 이용해 네이버 뉴스 url를 가져오는 함수
 
@@ -32,7 +53,7 @@ def get_naver_news_url(location = "서울", display = 10, start = 1) -> dict:
     }
 
     params = {
-        "query": f"{location} 오늘 날씨 기상청",
+        "query": f"{location} 오늘 날씨",
         "display": display,
         "start": start,
         "sort": "date",
@@ -84,10 +105,10 @@ def get_naver_news_crawler(location = "서울") -> list:
 
     # TODO: flask로 요청 받은 값을 get_naver_news_url 함수에 인수 location으로 넘겨야 함.
     naver_news_data = get_naver_news_url(location)
+    summary_contents = []
 
     for items in naver_news_data["items"]:
         link = items["link"]
-        print(link)
 
         try:
             article_content = fetch_article_content(link)
@@ -101,7 +122,9 @@ def get_naver_news_crawler(location = "서울") -> list:
             print(e)
             continue
 
-        print(summary_content)
+        summary_contents.append(summary_content)
+    
+    return summary_contents
 
 def llm_summarize_news(article_content = "") -> str:
     """
@@ -128,9 +151,10 @@ def llm_summarize_news(article_content = "") -> str:
     # 3. system prompt, user prompt 세팅
     system_prompt = """당신은 전문 뉴스 요약 기자입니다.
     다음 규칙을 따르세요:
-    1. 기사 내용을 한 줄로 요약하세요.
+    1. 기사 내용을 30자 내의 한 줄로 요약하세요.
     2. 아침/낮 기온, 강수 확률, 체감온도 등 핵심 정보를 포함하세요.
-    3. 숫자와 단위를 정확히 표기하세요."""
+    3. 숫자와 단위를 정확히 표기하세요.
+    4. 만약 기사 내용이 날씨와 관련없다면 출력하지 마시오."""
 
     user_prompt = f"""다음은 날씨 기사입니다:
     {article_content}
@@ -150,5 +174,5 @@ def llm_summarize_news(article_content = "") -> str:
     return completion.choices[0].message.content.strip()
 
 
-if __name__ == "__main__":
-    get_naver_news_crawler()
+if __name__ == '__main__':
+    app.run(debug=True)
