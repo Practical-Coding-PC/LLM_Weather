@@ -1,5 +1,11 @@
 import requests
 from bs4 import BeautifulSoup
+import sys
+import os
+
+# 현재 파일의 상위 디렉토리 경로를 가져오기
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import config
 import re
 
@@ -126,6 +132,60 @@ def get_naver_news_crawler(location = "서울") -> list:
     
     return summary_contents
 
+
+
+def get_naver_weather_news_crawler(location="서울") -> list:
+    """
+    네이버 뉴스 url을 크롤링하는 함수.
+    네이버 API를 활용하여 크롤링하는 것은 중복된 뉴스 제목이 나오므로, 직접 requests를 활용해 개선하려 함.
+
+    Args:
+        location (str): 검색할 지역 (ex: "서울).
+
+    Returns:
+        list: 한 줄 요약된 뉴스들을 담은 리스트.
+    """
+
+    url = f"https://search.naver.com/search.naver?where=news&sm=tab_pge&query={location} 날씨"
+
+    response = requests.get(url)
+    response.raise_for_status()
+    print(f"Response Status Code: {response.status_code}")
+
+    soup = BeautifulSoup(response.text, 'html.parser')
+
+    # 클래스명 'sds-comps-text-type-headline1'을 가진 span 요소를 선택한다.
+    news_headline_elements = soup.select("span.sds-comps-text-type-headline1")
+
+    # 클래스명 'sds-comps-text-type-body1'을 가진 span 요소를 선택한다.
+    news_content_elements = soup.select("span.sds-comps-text-type-body1")
+
+    # news_titles는 네이버 뉴스 title들을 담고 있는 리스트이다.
+    news_titles = []
+    if not news_headline_elements:
+        print(f"'{location} 날씨'에 대해 'span.sds-comps-text-type-headline1' 선택자로 뉴스를 찾을 수 없습니다.")
+        return []
+        
+
+    for element in news_headline_elements:
+        # <span> 요소의 텍스트 내용을 직접 가져와, title들을 모두 리스트에 담는다.
+        headline_text = element.get_text(strip=True)
+        if headline_text:
+            news_titles.append(headline_text)
+
+    news_contents = []
+    for element in news_content_elements:
+        # <span> 요소의 텍스트 내용을 직접 가져와, content들을 모두 리스트에 담는다.
+        content_text = element.get_text(strip=True)
+        if content_text:
+            news_contents.append(content_text)
+
+    # 뉴스 제목, 내용 리스트 출력
+    print(f"뉴스 제목: {news_titles}")
+    print(f"뉴스 내용: {news_contents}")
+
+
+
 def llm_summarize_news(article_content = "") -> str:
     """
     주어진 뉴스 기사 내용을 openAI API를 사용하여 한 줄로 요약합니다.
@@ -175,4 +235,5 @@ def llm_summarize_news(article_content = "") -> str:
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    # app.run(debug=True)
+    print(get_naver_weather_news_crawler("서울"))
