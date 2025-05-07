@@ -1,4 +1,5 @@
 import requests
+import trafilatura
 from bs4 import BeautifulSoup
 import sys
 import os
@@ -137,7 +138,7 @@ def get_naver_news_crawler(location = "서울") -> list:
 def get_naver_weather_news_crawler(location="서울") -> list:
     """
     네이버 뉴스 url을 크롤링하는 함수.
-    네이버 API를 활용하여 크롤링하는 것은 중복된 뉴스 제목이 나오므로, 직접 requests를 활용해 개선하려 함.
+    가져온 url을 통해 trafilatura로 뉴스 본문을 추출한다.
 
     Args:
         location (str): 검색할 지역 (ex: "서울).
@@ -149,40 +150,59 @@ def get_naver_weather_news_crawler(location="서울") -> list:
     url = f"https://search.naver.com/search.naver?where=news&sm=tab_pge&query={location} 날씨"
 
     response = requests.get(url)
+
+    # 상태 코드 추출 (200 정상)
     response.raise_for_status()
     print(f"Response Status Code: {response.status_code}")
 
     soup = BeautifulSoup(response.text, 'html.parser')
 
-    # 클래스명 'sds-comps-text-type-headline1'을 가진 span 요소를 선택한다.
-    news_headline_elements = soup.select("span.sds-comps-text-type-headline1")
+    # CSS 선택자로 클래스가 lu8Lfh20c9DvvP05mqBf.OmR0jkNgHXA6BZNhMfn2인 <a> 태그 리스트를 가져오기
+    a_tag_list = soup.select("a.lu8Lfh20c9DvvP05mqBf.OmR0jkNgHXA6BZNhMfn2")
+    
+    # 각 <a> 태그에서 href 속성 값 추출하기
+    extracted_hrefs = []
 
-    # 클래스명 'sds-comps-text-type-body1'을 가진 span 요소를 선택한다.
-    news_content_elements = soup.select("span.sds-comps-text-type-body1")
+    if a_tag_list:
+        for a_tag in a_tag_list:
+            href_value = a_tag.get('href')
+            
+            if href_value:
+                extracted_hrefs.append(href_value)
+    else:
+         print("클래스 'lu8Lfh20c9DvvP05mqBf.OmR0jkNgHXA6BZNhMfn2'를 가진 <a> 태그를 찾지 못했습니다.")
+    
 
-    # news_titles는 네이버 뉴스 title들을 담고 있는 리스트이다.
-    news_titles = []
-    if not news_headline_elements:
-        print(f"'{location} 날씨'에 대해 'span.sds-comps-text-type-headline1' 선택자로 뉴스를 찾을 수 없습니다.")
-        return []
+    print("\n--- 최종 추출된 href 리스트 ---")
+    print(extracted_hrefs)
+
+    # 각 URL에 대해 본문을 저장할 리스트 (루프 시작 전에 선언)
+    all_news_bodies = []
+    news_body = None
+
+    for link in extracted_hrefs:
+        try:
+            # 1. requests로 HTML 가져오기
+            response = requests.get(link)
+            response.raise_for_status() # 기본적인 HTTP 오류 확인
+            
+            # 2. trafilatura로 본문 추출 (response.text에서 추출)
+            news_body = trafilatura.extract(response.text, include_comments=False)
+            
+            if not news_body: # 추출 실패 시 None/빈 문자열일 수 있음
+                print(f"  -> 본문 추출 실패 (trafilatura 반환값 없음)")
         
+        except Exception as e:
+             print(f"  -> 오류 발생: {link} 처리 중 문제 발생 ({e})")
 
-    for element in news_headline_elements:
-        # <span> 요소의 텍스트 내용을 직접 가져와, title들을 모두 리스트에 담는다.
-        headline_text = element.get_text(strip=True)
-        if headline_text:
-            news_titles.append(headline_text)
+        # 3. 추출 결과 활용 (예: 리스트에 추가)
+        if news_body:
+            print(f"  -> 본문 추출 성공 \n {news_body}-") # 확인용 출력
+            print("----------------")
+            all_news_bodies.append(news_body)
 
-    news_contents = []
-    for element in news_content_elements:
-        # <span> 요소의 텍스트 내용을 직접 가져와, content들을 모두 리스트에 담는다.
-        content_text = element.get_text(strip=True)
-        if content_text:
-            news_contents.append(content_text)
 
-    # 뉴스 제목, 내용 리스트 출력
-    print(f"뉴스 제목: {news_titles}")
-    print(f"뉴스 내용: {news_contents}")
+    print(f"\n총 {len(all_news_bodies)}개의 뉴스 본문을 추출했습니다.")
 
 
 
@@ -236,4 +256,4 @@ def llm_summarize_news(article_content = "") -> str:
 
 if __name__ == '__main__':
     # app.run(debug=True)
-    print(get_naver_weather_news_crawler("서울"))
+    get_naver_weather_news_crawler("원주")
