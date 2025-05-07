@@ -256,4 +256,4 @@ def llm_summarize_news(article_content = "") -> str:
 
 if __name__ == '__main__':
     # app.run(debug=True)
-    get_naver_weather_news_crawler("원주")
+    get_naver_weather_news_crawler("춘천")
