@@ -14,13 +14,6 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 # TODO: GEMINI_API_KEY 환경 변수에서 가져온 후에 대해 코드 변경할 것
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-# OpenAI API Key (환경변수에서 가져오거나 직접 입력)
-GEMINI_API_KEY = "AIzaSyBh3ARBbmzbM6rxLm5FuFtZDjlFD2TtpTU"
-# Gemini key
-# AIzaSyAHH2HaJkE-1dNy6Sq6GhtneUMGAurbh2s
-# AIzaSyC-BtbEw2RuUQvSxIY5UehKgTqIff3AN8A
-
-
 # MySQL 설정
 MYSQL_USER = "root"
 MYSQL_PASSWORD = "root"
