@@ -1,16 +1,16 @@
-import { FC, useState, FormEvent, KeyboardEvent } from "react";
+import { useState, FormEvent, KeyboardEvent } from "react";
 
-interface ChatInputProps {
+type ChatInputProps = {
   onSendMessage: (message: string) => void;
   placeholder?: string;
   disabled?: boolean;
-}
+};
 
-export const ChatInput: FC<ChatInputProps> = ({
+export function ChatInput({
   onSendMessage,
   placeholder = "메시지를 입력하세요...",
   disabled = false,
-}) => {
+}: ChatInputProps) {
   const [message, setMessage] = useState("");
 
   const handleSubmit = (e: FormEvent) => {
@@ -67,4 +67,4 @@ export const ChatInput: FC<ChatInputProps> = ({
       </button>
     </form>
   );
-};
+}
