@@ -6,7 +6,7 @@
 - **pip install**: fastapi, uvicorn, trafilatura, litellm 등 실행에 필요한 라이브러리를 import 해주세요.
 
 ### 2. 서버 실행/종료 방법
-(1) 서버 실행: `uvicorn server.app:app --reload`
+(1) 서버 실행: `uvicorn server.app:app --reload`<br>
 (2) 서버 종료: `ctrl+c`
 
 ### 3. 서버 요청 테스트 방법 (날씨 기사 요약 정보 요청)
