@@ -311,11 +311,11 @@ async def export_news_summaries_json(location: str):
         if title and summary and link
     ]
 
-    # with open("news_summaries.json", "w", encoding="utf-8") as f:
+    # 파일 형태로 만들고 싶을 경우 사용
+        # with open("news_summaries.json", "w", encoding="utf-8") as f:
     #     json.dump(export_list, f, ensure_ascii=False, indent=2)
-    
-    # return json.dumps(export_list, ensure_ascii=False, indent=2)
 
+    return json.dumps(export_list, ensure_ascii=False, indent=2)
 
 if __name__ == "__main__":
     export_news_summaries_json("춘천")
