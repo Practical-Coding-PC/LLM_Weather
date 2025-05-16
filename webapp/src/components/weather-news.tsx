@@ -1,21 +1,35 @@
 import React from "react";
+import { ExternalLink } from "lucide-react";
 
 type WeatherNewsProps = {
   newsTitle: string;
-  progress?: number;
+  summary: string;
+  articleUrl?: string;
 };
 
-export function WeatherNews({ newsTitle, progress = 50 }: WeatherNewsProps) {
+export function WeatherNews({
+  newsTitle,
+  summary,
+  articleUrl,
+}: WeatherNewsProps) {
   return (
-    <div className="border border-gray-400 rounded p-4 flex-grow mb-4">
-      <div>{newsTitle}</div>
-      <div className="flex items-center mt-4">
-        <div
-          className="flex-grow h-2 bg-green-200 rounded"
-          style={{ width: `${progress}%` }}
-        ></div>
-        <div className="text-3xl text-green-600 ml-2">N</div>
-      </div>
+    <div className="bg-white border border-gray-200 rounded-lg p-4 flex-grow mb-4 shadow-sm hover:shadow-md transition-all duration-200">
+      <h3 className="font-semibold text-gray-800 mb-2">{newsTitle}</h3>
+      <p className="text-sm text-gray-600 mb-3 line-clamp-2">{summary}</p>
+
+      {articleUrl && (
+        <div className="text-right">
+          <a
+            href={articleUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center text-xs text-blue-600 hover:text-blue-800 hover:underline"
+          >
+            <span className="mr-1">Read more</span>
+            <ExternalLink size={12} />
+          </a>
+        </div>
+      )}
     </div>
   );
 }
