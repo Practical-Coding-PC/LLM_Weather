@@ -2,7 +2,7 @@ import React from "react";
 import { WeatherHeader } from "../components/weather-header";
 import { HourlyForecast } from "../components/hourly-forecast";
 import { NavigationButtons } from "../components/navigation-buttons";
-import { WeatherNews } from "../components/weather-news";
+import { WeatherNewsContainer } from "./weather-news-container";
 import { ChatAssistant } from "../components/chat-assistant";
 
 export function WeatherDashboard() {
@@ -26,11 +26,10 @@ export function WeatherDashboard() {
       { label: "자외선", onClick: () => console.log("자외선 clicked") },
       { label: "바람", onClick: () => console.log("바람 clicked") },
     ],
-    newsTitle: "오늘의 대표 날씨 뉴스",
   };
 
   return (
-    <div className="max-w-md mx-auto h-screen bg-amber-50 flex flex-col p-4">
+    <div className="max-w-md mx-auto h-screen flex flex-col p-4">
       <WeatherHeader
         location={weatherData.location}
         currentTemp={weatherData.currentTemp}
@@ -43,7 +42,7 @@ export function WeatherDashboard() {
 
       <NavigationButtons buttons={weatherData.navButtons} />
 
-      <WeatherNews newsTitle={weatherData.newsTitle} />
+      <WeatherNewsContainer location={weatherData.location} />
 
       <ChatAssistant onClick={() => console.log("Chat assistant clicked")} />
     </div>
