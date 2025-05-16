@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 import json
 from crawler.naver_news_crawler import export_news_summaries_json
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 
@@ -35,6 +36,15 @@ from apscheduler.triggers.interval import IntervalTrigger
 # app = FastAPI(lifespan = lifespan)
 
 app = FastAPI()
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://localhost:3001"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.get("/")
 async def root():
