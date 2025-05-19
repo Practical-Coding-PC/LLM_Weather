@@ -1,139 +1,69 @@
+import asyncio
+import aiohttp
 import requests
 import trafilatura
 from bs4 import BeautifulSoup
-import sys
 import os
 import json
 
-# 현재 파일의 상위 디렉토리 경로를 가져오기
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import re
-
-from openai import OpenAI
+from litellm import completion
 from litellm import batch_completion
 from dotenv import load_dotenv
-# from flask import Flask, render_template, request
 
-# app = Flask(__name__)
-
-# @app.route('/')
-# def index():
-#     return """
-#         <h1>네이버 뉴스 요약</h1>
-#         <form method="GET" action="/news">
-#             <label for="location">지역:</label>
-#             <input type="text" id="location" name="location" value="서울"><br><br>
-#             <input type="submit" value="뉴스 요약 보기">
-#         </form>
-#     """
-
-# @app.route('/news')
-# def display_news():
-#     location = request.args.get('location', '서울')
-#     summary_contents = get_naver_news_crawler(location)
-#     return render_template('news_list.html', summaries=summary_contents, location=location)
-
-
-def get_naver_news_url(location = "서울", display = 5, start = 1) -> dict:
+async def get_city_from_coordinates(latitude: float, longitude: float) -> str:
     """
-    네이버 뉴스 검색 API를 이용해 네이버 뉴스 url를 가져오는 함수
+    카카오맵 REST API를 사용하여 좌표로부터 행정구역(시) 이름을 가져옵니다.
 
     Args:
-        location (str): 검색할 지역 (ex: "서울).
-        display (int): 한 페이지에 표시할 뉴스 개수.
-        start (int): 검색 시작 위치 (최대 1000).
+        latitude(float): 위도 값.
+        longitude(float): 경도 값.
 
     Returns:
-        dict: API 응답 데이터(JSON 형식).
+        str: 변환된 행정구역(시)의 이름입니다.
     """
 
-    # 네이버 검색 API를 사용하기 위한 CLIENT_ID, CLIENT_SECRET
-    NAVER_CLIENT_ID = config.NAVER_CLIENT_ID
-    NAVER_CLIENT_SECRET = config.NAVER_CLIENT_SECRET
+    load_dotenv()
 
-    # 기본 네이버 뉴스 검색 URL과 쿼리 파라미터, 헤더 설정
-    request_url = f"https://openapi.naver.com/v1/search/news.json?"
-    
+    url = "https://dapi.kakao.com/v2/local/geo/coord2regioncode"
+    params = {
+        "x": str(longitude),
+        "y": str(latitude)
+    }
 
     headers = {
-        "X-Naver-Client-Id": NAVER_CLIENT_ID,
-        "X-Naver-Client-Secret": NAVER_CLIENT_SECRET
+        "Authorization": f"KakaoAK {os.environ.get('KAKAO_REST_API_KEY')}"
     }
 
-    params = {
-        "query": f"{location} 오늘 날씨",
-        "display": display,
-        "start": start,
-        "sort": "date",
-    }
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url, params=params, headers=headers) as response:
 
-    answer = requests.get(request_url, headers=headers, params=params)
+            print(f"KakaoMap Response Status Code: {response.status}")
+            
+            json_response = await response.json()
 
-    if answer.status_code == 200:
-        return answer.json()
-    else:
-        raise Exception(f"NAVER 검색 API 호출 실패: {answer.status_code}, {answer.text}")
+            print(json_response.get('documents')[0])
 
+            document = json_response.get('documents')[0]
 
-def fetch_article_content(link: str) -> str:
-    """
-    주어진 URL에서 날씨 뉴스 기사 콘텐츠를 가져옵니다.
-    
-    Args:
-        link (str): 크롤링할 link.
+            location = document.get('region_2depth_name')
 
-    Returns:
-        str: 날씨 뉴스 기사 콘텐츠.
-    """
-    response = requests.get(link)
-    if response.status_code != 200:
-        raise Exception(f"페이지 요청 실패: {response.status_code}")
-    
-    soup = BeautifulSoup(response.text, "html.parser")
+            # 'region_2depth_name'(구 단위)이 비어있을 경우, 'region_1depth_name'(시도 단위)로 대체한다. ex) 세종특별자치시
+            if location == '':
+                location = document.get('region_1depth_name')
+            
 
-    # 기사 본문 추출 (예: id="dic_area")
-    content = soup.find(id="dic_area") or soup.find(class_="article-content") or soup.find("article")
-    if not content:
-        raise Exception("날씨 정보를 찾을 수 없습니다.")
-
-    # 텍스트 정리 및 반환
-    return content.get_text(strip=True)
-
-
-def get_naver_news_crawler(location = "서울") -> list:
-    """
-    get_naver_news_url 함수를 통해 받아온 네이버 뉴스 url을 크롤링하는 함수.
-
-    Args:
-        location (str): 검색할 지역 (ex: "서울).
-
-    Returns:
-        list: 한 줄 요약된 뉴스들을 담은 리스트.
-    """
-
-    # TODO: flask로 요청 받은 값을 get_naver_news_url 함수에 인수 location으로 넘겨야 함.
-    naver_news_data = get_naver_news_url(location)
-    summary_contents = []
-
-    for items in naver_news_data["items"]:
-        link = items["link"]
-
-        try:
-            article_content = fetch_article_content(link)
-
-            # HTML 태그 형식 탐지해 지우기
-            clean_article_content = re.sub(r'<.*?>', '', str(article_content))
-
-            # 날씨 기사 요약하기
-            summary_content = llm_summarize_news(clean_article_content)
-        except Exception as e:
-            print(e)
-            continue
-
-        summary_contents.append(summary_content)
-    
-    return summary_contents
+            # 시로 끝나는 경우 시를 제거한다.
+            if location.endswith("시"):
+                location = location.removesuffix("시")
+            # 군으로 끝나는 경우 군을 제거한다.
+            elif location.endswith("군"):
+                location = location.removesuffix("군")
+            # 구로 끝나는 경우 구를 제거한다.
+            elif location.endswith("구"):
+                location = location.removesuffix("구")
+            
+            return location
 
 
 
@@ -281,8 +211,6 @@ def llm_summarize_news(prompts: list) -> str:
         ValueError: 입력값이 비어 있거나 유효하지 않은 경우
     """
 
-    load_dotenv()
-
     if not prompts or not isinstance(prompts, list):
         raise ValueError("prompts가 인수로 입력되지 않았습니다!")
 
@@ -294,8 +222,45 @@ def llm_summarize_news(prompts: list) -> str:
 
     return responses
 
+def get_summarized_news(prompt, location):
+    system_prompt = f"""당신은 제공된 '문맥' 속 뉴스가 '{location}' 지역의 날씨에 대한 내용을 명확하게 다루고 있는지 판단해야 합니다.
+    다음 규칙을 엄격히 따르세요:
+    1. '문맥'의 뉴스가 '{location}' 날씨에 대한 내용을 명확히 포함하고 있다면, 다른 추가 설명 없이 '답변: pass' 라고만 답변하세요.
+    2. '문맥'의 뉴스가 '{location}' 날씨에 대한 내용을 포함하고 있지 않거나, 단순히 지역 이름만 언급되고 날씨와 관련이 없다면, 다른 추가 설명 없이 '답변: fail' 이라고만 답변하세요.
 
-async def export_news_summaries_json(location: str):
+    문맥:
+    {prompt}
+    """.strip()
+
+    # 요약 생성
+    response = completion(
+        model = "gemini/gemini-2.0-flash",
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": f"다음 문맥의 뉴스가 {location} 날씨에 대한 뉴스인지 판단하시오."}
+        ]
+    )
+
+    return response.choices[0].message.content
+
+
+async def export_news_summaries_json(latitude: float, longitude: float) -> dict:
+    """
+    좌표 기반 지역 날씨 뉴스를 Gemini로 요약 후, 관련 정보를 dict로 반환합니다.
+
+    세부적으로는 좌표를 행정구역(시)으로 변환, 해당 지역의 날씨 뉴스 크롤링, Gemini API를 통한 기사 요약 과정이 포함됩니다.
+
+    Args:
+        latitude(float): 위도.
+        longitude(float): 경도.
+
+    Returns:
+        dict: 뉴스의 'title', 'summary', 'url'을 포함하는 딕셔너리.
+    """
+
+    location = await get_city_from_coordinates(latitude, longitude)
+    print(f"카카오맵에서 반환한 행정구역(시) 이름: {location}")
+
     link_list, title_list, news_list = get_naver_weather_news_crawler(location)
     prompts = news_to_prompt(news_list, location)
 
@@ -303,9 +268,9 @@ async def export_news_summaries_json(location: str):
 
     export_list = [
         {
-        "articleTitle": title,
-        "articleSummary": summary,
-        "articleUrl": link,
+            "articleTitle": title,
+            "articleSummary": summary,
+            "articleUrl": link,
         }
         for title, summary, link in zip(title_list, response_list, link_list)
         if title and summary and link
@@ -316,6 +281,7 @@ async def export_news_summaries_json(location: str):
     #     json.dump(export_list, f, ensure_ascii=False, indent=2)
 
     return json.dumps(export_list, ensure_ascii=False, indent=2)
+    
 
 if __name__ == "__main__":
-    export_news_summaries_json("춘천")
+    asyncio.run(export_news_summaries_json(33.25235, 126.5125556))

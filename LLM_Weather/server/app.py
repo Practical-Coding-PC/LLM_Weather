@@ -51,5 +51,5 @@ async def root():
     return {"message": "Hello World"}
 
 @app.get("/weather/news")
-async def get_weather_news_summaries(location: str):
-    return json.loads(await export_news_summaries_json(location))
+async def get_weather_news_summaries(latitude: float, longitude: float):
+    return json.loads(await export_news_summaries_json(latitude, longitude))
