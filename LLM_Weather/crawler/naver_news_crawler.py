@@ -240,7 +240,7 @@ async def llm_summarize_news(prompt: list) -> str:
                                          (예: [{'role': 'system', ...}, {'role': 'user', ...}])
 
     Returns:
-        str: 기사 요약문 문자열 또는 오류 발생 시 "해당 지역 날씨 정보 없음"
+        str: 기사 요약문 문자열 또는 오류 발생 시 "날씨 정보 없음"
     """
 
     if not prompt or not isinstance(prompt, list):
@@ -256,10 +256,10 @@ async def llm_summarize_news(prompt: list) -> str:
         if response and response.choices and response.choices[0].message and response.choices[0].message.content:
             return response.choices[0].message.content
         else:
-            return "해당 지역 날씨 정보 없음" # 문제 식별을 위한 명확한 반환값
+            return "날씨 정보 없음" # 문제 식별을 위한 명확한 반환값
         
     except Exception as e:
-        return "해당 지역 날씨 정보 없음"
+        return "날씨 정보 없음"
 
 
 async def export_news_summaries_json(latitude: float, longitude: float) -> dict:
