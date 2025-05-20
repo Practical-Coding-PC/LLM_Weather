@@ -16,8 +16,8 @@ async def get_city_from_coordinates(latitude: float, longitude: float) -> str:
     카카오맵 REST API를 사용하여 좌표로부터 행정구역(시) 이름을 가져옵니다.
 
     Args:
-        latitude(float): 위도 값.
-        longitude(float): 경도 값.
+        latitude (float): 위도 값.
+        longitude (float): 경도 값.
 
     Returns:
         str: 변환된 행정구역(시)의 이름입니다. API 호출에 실패하거나 해당 좌표의
@@ -67,7 +67,19 @@ async def get_city_from_coordinates(latitude: float, longitude: float) -> str:
             return location
 
 
-async def fetch_and_extract_article(session: aiohttp.ClientSession, link: str):
+async def fetch_and_extract_article(session: aiohttp.ClientSession, link: str) -> Optional[str]:
+    """
+    주어진 link의 뉴스 기사를 비동기적으로 크롤링하고, 본문을 추출하여 반환합니다.
+    'trafilatura' 라이브러리의 extract 메소드를 사용하여 기사 본문을 추출합니다.
+
+    Args:
+        session (aiohttp.ClientSession): HTTP 요청을 위한 aiohttp 클라이언트 세션입니다.
+        link (str): 크롤링 및 본문 추출을 수행할 기사의 URL입니다.
+
+    Returns:
+        Optional[str]: 추출된 기사 본문 문자열입니다.
+                       추출에 실패하거나 오류가 발생하면 None을 반환합니다. 
+    """
     try:
         async with session.get(link) as response:
             # HTTP 오류 발생 시, 예외를 발생시킨다.
@@ -87,6 +99,7 @@ async def fetch_and_extract_article(session: aiohttp.ClientSession, link: str):
         return None
     
     return news_body
+
 
 async def get_naver_weather_news_crawler(location="서울") -> Tuple[List[str], List[str], List[Optional[str]]]:
     """
@@ -181,9 +194,9 @@ def news_to_prompt(title_list: list, news_list: list, location: str) -> list:
     주어진 뉴스 기사 내용들을 각각의 prompt으로 만든 후, 하나의 리스트로 반환합니다.
 
     Args:
-        list (str): 날씨 기사 제목이 들어있는 리스트
-        list (str): 날씨 기사 내용이 들어있는 리스트
-        str: 검색할 지역 (ex: "서울).
+        title_list (list): 날씨 기사 제목이 들어있는 리스트
+        news_list (list): 날씨 기사 내용이 들어있는 리스트
+        location (str): 검색할 지역 (ex: "서울).
     
     Returns:
         list: gemini API에 question으로 전달할 prompt들이 담긴 리스트
@@ -269,8 +282,8 @@ async def export_news_summaries_json(latitude: float, longitude: float) -> dict:
     세부적으로는 좌표를 행정구역(시)으로 변환, 해당 지역의 날씨 뉴스 크롤링, Gemini API를 통한 기사 요약 과정이 포함됩니다.
 
     Args:
-        float: 위도.
-        float: 경도.
+        latitude (float): 위도.
+        longitude (float): 경도.
 
     Returns:
         dict: 뉴스의 'title', 'summary', 'url'을 포함하는 딕셔너리.
