@@ -263,7 +263,7 @@ async def llm_summarize_news(prompt: list) -> str:
         # 사용자님이 'acompletion'이라고 명시하셨으므로 litellm.acompletion으로 가정합니다.
         response = await litellm.acompletion(
             model="gemini/gemini-2.0-flash",
-            messages=prompt # 'prompt'는 API가 요구하는 messages 형식 (list of dicts)이어야 합니다.
+            messages=prompt
         )
 
         if response and response.choices and response.choices[0].message and response.choices[0].message.content:
