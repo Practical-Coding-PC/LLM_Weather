@@ -260,7 +260,6 @@ async def llm_summarize_news(prompt: list) -> str:
         return "입력 프롬프트 오류"
 
     try:
-        # 사용자님이 'acompletion'이라고 명시하셨으므로 litellm.acompletion으로 가정합니다.
         response = await litellm.acompletion(
             model="gemini/gemini-2.0-flash",
             messages=prompt
