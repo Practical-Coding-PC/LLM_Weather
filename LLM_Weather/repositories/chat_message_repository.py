@@ -1,4 +1,4 @@
-from db_connection import get_db_cursor
+from db.db_connection import get_db_cursor
 
 class ChatMessageRepository:
     """채팅 메시지 작업을 위한 저장소"""
