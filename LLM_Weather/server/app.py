@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
+from repositories.news_repository import NewsRepository
 
 # # AsysncIOScheduler instance 생성
 # scheduler = AsyncIOScheduler(timezone = "Asia/Seoul")
@@ -53,3 +54,7 @@ async def root():
 @app.get("/weather/news")
 async def get_weather_news_summaries(latitude: float, longitude: float):
     return json.loads(await export_news_summaries_json(latitude, longitude))
+
+@app.get("/weather/news/test")
+async def get_weather_news_summaries_test():
+    return NewsRepository.get_by_location("춘천")
