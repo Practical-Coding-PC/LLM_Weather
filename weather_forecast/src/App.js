@@ -25,9 +25,15 @@ function App() {
   return (
     <div style={{ padding: '2rem' }}>
       <h1>🌤 초단기 기상 예보</h1>
-      <ul>
+      <ul style={{
+          listStyle: 'disc inside',
+          padding: 0,
+          margin: 0,
+          columnCount: 2,
+          columnGap: '20px'
+        }}>
         {forecast.map((item, idx) => (
-          <li key={idx}>
+          <li key={idx} style={{ marginBottom: '6px', lineHeight: 1.4 }}>
             {item.fcstTime} - {item.category}: {item.fcstValue}
           </li>
         ))}
