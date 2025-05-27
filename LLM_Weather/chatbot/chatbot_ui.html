@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>날씨 챗봇</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #a8d5ff 0%, #e0f0ff 50%, #b8d9ff 100%);
+            min-height: 100vh;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* 구름과 별 애니메이션 */
+        .cloud {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 50px;
+            opacity: 0.7;
+            animation: float 6s ease-in-out infinite;
+        }
+
+        .cloud:before {
+            content: '';
+            position: absolute;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 50px;
+        }
+
+        .cloud:after {
+            content: '';
+            position: absolute;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 50px;
+        }
+
+        .cloud1 {
+            width: 80px;
+            height: 40px;
+            top: 20%;
+            left: 10%;
+            animation-delay: 0s;
+        }
+
+        .cloud1:before {
+            width: 50px;
+            height: 50px;
+            top: -25px;
+            left: 10px;
+        }
+
+        .cloud1:after {
+            width: 60px;
+            height: 40px;
+            top: -15px;
+            right: 10px;
+        }
+
+        .cloud2 {
+            width: 60px;
+            height: 30px;
+            top: 15%;
+            right: 15%;
+            animation-delay: 2s;
+        }
+
+        .cloud2:before {
+            width: 40px;
+            height: 40px;
+            top: -20px;
+            left: 8px;
+        }
+
+        .cloud2:after {
+            width: 50px;
+            height: 30px;
+            top: -10px;
+            right: 8px;
+        }
+
+        .star {
+            position: absolute;
+            width: 0;
+            height: 0;
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-bottom: 6px solid #4a6db8;
+            transform: rotate(35deg);
+            animation: twinkle 2s ease-in-out infinite alternate;
+        }
+
+        .star:before {
+            content: '';
+            position: absolute;
+            left: -8px;
+            top: -4px;
+            width: 0;
+            height: 0;
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-bottom: 6px solid #4a6db8;
+            transform: rotate(-70deg);
+        }
+
+        .star:after {
+            content: '';
+            position: absolute;
+            left: -8px;
+            top: 2px;
+            width: 0;
+            height: 0;
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-bottom: 6px solid #4a6db8;
+            transform: rotate(70deg);
+        }
+
+        .star1 {
+            top: 25%;
+            right: 25%;
+            animation-delay: 0s;
+        }
+
+        .star2 {
+            top: 30%;
+            right: 35%;
+            animation-delay: 1s;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+        }
+
+        @keyframes twinkle {
+            0% { opacity: 0.3; transform: rotate(35deg) scale(0.8); }
+            100% { opacity: 1; transform: rotate(35deg) scale(1.2); }
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            z-index: 10;
+        }
+
+        .header {
+            text-align: center;
+            margin-top:20px;
+        }
+
+        .title {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2c3e50;
+            /* margin-bottom: 10px; */
+        }
+
+        .chat-container {
+            margin-top:0px;
+            flex: 1;
+            padding: 0 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .message {
+            display: flex;
+            align-items: flex-end;
+            gap: 10px;
+        }
+
+        .message.bot {
+            justify-content: flex-start;
+        }
+
+        .message.user {
+            justify-content: flex-end;
+        }
+
+        .message-bubble {
+            max-width: 70%;
+            padding: 15px 20px;
+            border-radius: 25px;
+            font-size: 14px;
+            line-height: 1.4;
+            position: relative;
+            word-wrap: break-word;
+        }
+
+        .message.bot .message-bubble {
+            background: rgba(255, 255, 255, 0.9);
+            color: #2c3e50;
+            border-bottom-left-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .message.user .message-bubble {
+            background: #4a90e2;
+            color: white;
+            border-bottom-right-radius: 8px;
+            box-shadow: 0 2px 10px rgba(74, 144, 226, 0.3);
+        }
+
+        .welcome-message {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 25px;
+            margin: 20px 0;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .welcome-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 15px;
+        }
+
+        .welcome-list {
+            text-align: left;
+            color: #5a6c7d;
+            line-height: 1.6;
+        }
+
+        .welcome-list li {
+            margin-bottom: 5px;
+        }
+
+        .input-container {
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            border-top: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .input-wrapper {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .message-input {
+            flex: 1;
+            padding: 12px 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 25px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.3s ease;
+        }
+
+        .message-input:focus {
+            border-color: #4a90e2;
+        }
+
+        .send-button {
+            background: #4a90e2;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 45px;
+            height: 45px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.1s ease;
+            font-size: 18px;
+        }
+
+        .send-button:hover {
+            background: #357abd;
+            transform: scale(1.05);
+        }
+
+        .send-button:active {
+            transform: scale(0.95);
+        }
+
+        .typing-indicator {
+            display: none;
+            padding: 15px 20px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 25px;
+            border-bottom-left-radius: 8px;
+            max-width: 70%;
+            margin: 5px 0;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .typing-dots {
+            display: flex;
+            gap: 4px;
+        }
+
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            background: #4a90e2;
+            border-radius: 50%;
+            animation: typing 1.4s infinite ease-in-out;
+        }
+
+        .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+
+        @keyframes typing {
+            0%, 80%, 100% { transform: scale(0.8); opacity: 0.5; }
+            40% { transform: scale(1); opacity: 1; }
+        }
+
+        .quick-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 15px 0;
+            justify-content: center;
+        }
+
+        .quick-button {
+            background: rgba(255, 255, 255, 0.9);
+            border: 2px solid #4a90e2;
+            color: #4a90e2;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .quick-button:hover {
+            background: #4a90e2;
+            color: white;
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body>
+    <div class="cloud cloud1"></div>
+    <div class="cloud cloud2"></div>
+    <div class="star star1"></div>
+    <div class="star star2"></div>
+
+    <div class="container">
+        <div class="header">
+            <div class="title">☁️ 날씨 챗봇 ⭐</div>
+        </div>
+
+        <div class="chat-container" id="chatContainer">
+            <div class="welcome-message">
+                <div class="welcome-title">안녕! 궁금한걸 물어봐 😊</div>
+                <ul class="welcome-list">
+                    <li>오늘 일기예보 확인하기(한파, 폭염, 대설 등)</li>
+                    <li>춘천 효자1동 cctv 보여줘</li>
+                    <li>오늘 무슨 옷 입을까?</li>
+                    <li>그 외 날씨 관련 질문</li>
+                </ul>
+            </div>
+
+            <div class="quick-buttons">
+                <button class="quick-button" onclick="sendQuickMessage('오늘 날씨 어때?')">오늘 날씨</button>
+                <button class="quick-button" onclick="sendQuickMessage('오늘 비 올까?')">비 예보</button>
+                <button class="quick-button" onclick="sendQuickMessage('지금 운동 나가도 괜찮을까?')">운동하기 좋아?</button>
+                <button class="quick-button" onclick="sendQuickMessage('내일 날씨 어때?')">내일 날씨</button>
+            </div>
+        </div>
+
+        <div class="typing-indicator" id="typingIndicator">
+            <div class="typing-dots">
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+            </div>
+        </div>
+
+        <div class="input-container">
+            <div class="input-wrapper">
+                <input type="text" id="messageInput" class="message-input" placeholder="메시지를 입력하세요..." maxlength="500">
+                <button id="sendButton" class="send-button">➤</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const chatContainer = document.getElementById('chatContainer');
+        const messageInput = document.getElementById('messageInput');
+        const sendButton = document.getElementById('sendButton');
+        const typingIndicator = document.getElementById('typingIndicator');
+
+        // 메시지 전송 함수
+        async function sendMessage() {
+            const message = messageInput.value.trim();
+            if (!message) return;
+
+            // 사용자 메시지 추가
+            addMessage(message, 'user');
+            messageInput.value = '';
+
+            // 타이핑 인디케이터 표시
+            showTypingIndicator();
+
+            try {
+                // FastAPI 서버와 통신
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ message: message })
+                });
+
+                hideTypingIndicator();
+
+                if (response.ok) {
+                    const data = await response.json();
+                    addMessage(data.reply, 'bot');
+                } else {
+                    const errorData = await response.json();
+                    addMessage(errorData.detail || '서버 오류가 발생했습니다.', 'bot');
+                }
+            } catch (error) {
+                hideTypingIndicator();
+                console.error('API 호출 오류:', error);
+                addMessage('네트워크 오류가 발생했습니다. 다시 시도해주세요. 😅', 'bot');
+            }
+        }
+
+        // 빠른 응답 버튼
+        function sendQuickMessage(message) {
+            messageInput.value = message;
+            sendMessage();
+        }
+
+        // 메시지 추가 함수
+        function addMessage(text, sender) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender}`;
+            
+            const bubbleDiv = document.createElement('div');
+            bubbleDiv.className = 'message-bubble';
+            bubbleDiv.textContent = text;
+            
+            messageDiv.appendChild(bubbleDiv);
+            chatContainer.appendChild(messageDiv);
+            
+            // 스크롤을 맨 아래로
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        // 타이핑 인디케이터 표시/숨김
+        function showTypingIndicator() {
+            typingIndicator.style.display = 'block';
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function hideTypingIndicator() {
+            typingIndicator.style.display = 'none';
+        }
+
+        // 이벤트 리스너
+        sendButton.addEventListener('click', sendMessage);
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        // 초기 인사 메시지
+        setTimeout(() => {
+            addMessage('안녕하세요! 날씨에 대해 궁금한 것이 있으면 언제든 물어보세요! 🌤️', 'bot');
+        }, 1000);
+    </script>
+</body>
+</html>
