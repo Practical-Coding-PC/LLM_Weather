@@ -375,6 +375,7 @@
                 <button class="quick-button" onclick="sendQuickMessage('오늘 비 올까?')">비 예보</button>
                 <button class="quick-button" onclick="sendQuickMessage('지금 운동 나가도 괜찮을까?')">운동하기 좋아?</button>
                 <button class="quick-button" onclick="sendQuickMessage('내일 날씨 어때?')">내일 날씨</button>
+                <button class="quick-button" onclick="resetChat()" style="background: #ff6b6b; color: white; border-color: #ff6b6b;">새 채팅 시작</button>
             </div>
         </div>
 
@@ -395,6 +396,9 @@
     </div>
 
     <script>
+        let currentChatId = null;
+        let currentUserId = 'web_user_' + Date.now(); // 간단한 사용자 ID 생성
+
         const chatContainer = document.getElementById('chatContainer');
         const messageInput = document.getElementById('messageInput');
         const sendButton = document.getElementById('sendButton');
@@ -414,18 +418,35 @@
 
             try {
                 // FastAPI 서버와 통신
+                const requestBody = {
+                    message: message,
+                    user_id: currentUserId
+                };
+                
+                // 기존 채팅 세션이 있으면 추가
+                if (currentChatId) {
+                    requestBody.chat_id = currentChatId;
+                }
+
                 const response = await fetch('/api/chat', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ message: message })
+                    body: JSON.stringify(requestBody)
                 });
 
                 hideTypingIndicator();
 
                 if (response.ok) {
                     const data = await response.json();
+                    
+                    // 채팅 ID 저장
+                    if (data.chat_id) {
+                        currentChatId = data.chat_id;
+                        console.log('채팅 ID 업데이트:', currentChatId);
+                    }
+                    
                     addMessage(data.reply, 'bot');
                 } else {
                     const errorData = await response.json();
@@ -438,7 +459,42 @@
             }
         }
 
-        // 빠른 응답 버튼
+        // 채팅 기록 로드 함수
+        async function loadChatHistory() {
+            if (!currentChatId) return;
+            
+            try {
+                const response = await fetch(`/api/chat/${currentChatId}/messages`);
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    // 기존 메시지 제거 (환영 메시지 제외)
+                    const messages = chatContainer.querySelectorAll('.message');
+                    messages.forEach(msg => msg.remove());
+                    
+                    // 채팅 기록 추가
+                    data.messages.forEach(msg => {
+                        addMessage(msg.content, msg.role === 'user' ? 'user' : 'bot');
+                    });
+                    
+                    console.log(`${data.messages.length}개의 이전 메시지를 로드했습니다.`);
+                }
+            } catch (error) {
+                console.error('채팅 기록 로드 실패:', error);
+            }
+        }
+
+        // 채팅 기록 초기화 함수
+        function resetChat() {
+            currentChatId = null;
+            currentUserId = 'web_user_' + Date.now();
+            
+            // 메시지 제거 (환영 메시지 제외)
+            const messages = chatContainer.querySelectorAll('.message');
+            messages.forEach(msg => msg.remove());
+            
+            console.log('새로운 채팅 세션을 시작합니다.');
+        }
         function sendQuickMessage(message) {
             messageInput.value = message;
             sendMessage();
