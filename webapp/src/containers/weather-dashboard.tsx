@@ -1,9 +1,17 @@
 import React from "react";
 import { WeatherHeader } from "../components/weather-header";
-import { HourlyForecast } from "../components/hourly-forecast";
 import { NavigationButtons } from "../components/navigation-buttons";
 import { WeatherNewsContainer } from "./weather-news-container";
 import { ChatAssistant } from "../components/chat-assistant";
+import dynamic from "next/dynamic";
+
+const HourlyForecast = dynamic(
+  () =>
+    import("../components/hourly-forecast").then((mod) => mod.HourlyForecast),
+  {
+    ssr: false,
+  }
+);
 
 export function WeatherDashboard() {
   const weatherData = {
@@ -13,12 +21,12 @@ export function WeatherDashboard() {
     lowTemp: "8°C",
     weatherMessage: "어제보다 바람이\n많이 불고 비가 와요.",
     timeSlots: [
-      { time: "1시" },
-      { time: "1시" },
-      { time: "1시" },
-      { time: "1시" },
-      { time: "1시" },
-      { time: "1시" },
+      { time: "1시", temp: 10 },
+      { time: "2시", temp: 13 },
+      { time: "3시", temp: 17 },
+      { time: "4시", temp: 24 },
+      { time: "5시", temp: 18 },
+      { time: "6시", temp: 15 },
     ],
     navButtons: [
       { label: "습도", onClick: () => console.log("습도 clicked") },

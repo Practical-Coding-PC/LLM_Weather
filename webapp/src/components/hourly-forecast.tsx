@@ -1,7 +1,9 @@
 import React from "react";
+import { LineChart, Line, ResponsiveContainer } from "recharts";
 
 type TimeSlot = {
   time: string;
+  temp: number;
 };
 
 type HourlyForecastProps = {
@@ -11,15 +13,23 @@ type HourlyForecastProps = {
 export function HourlyForecast({ timeSlots }: HourlyForecastProps) {
   return (
     <div className="border border-gray-400 rounded mb-4">
-      <div className="border-b border-gray-400 p-2">
-        <div className="flex justify-between">
-          <div>시간</div>
-          {timeSlots.map((slot, index) => (
-            <div key={index}>{slot.time}</div>
-          ))}
-        </div>
+      <div className="flex justify-between">
+        {timeSlots.map((slot) => (
+          <div key={slot.time}>{slot.time}</div>
+        ))}
       </div>
-      <div className="h-32"></div>
+      <div className="h-24">
+        <ResponsiveContainer>
+          <LineChart data={timeSlots}>
+            <Line type="linear" dataKey="temp" stroke="#8884d8" />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+      <div className="flex justify-between">
+        {timeSlots.map((slot) => (
+          <div key={slot.time}>{slot.temp}°C</div>
+        ))}
+      </div>
     </div>
   );
 }
