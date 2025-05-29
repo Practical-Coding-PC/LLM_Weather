@@ -13,9 +13,9 @@ export function WeatherNews({
   articleUrl,
 }: WeatherNewsProps) {
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-4 flex-grow mb-4 shadow-sm hover:shadow-md transition-all duration-200">
+    <div className="border border-white/30 rounded-lg p-4 flex-grow mb-4 shadow-sm hover:shadow-md transition-all duration-200">
       <h3 className="font-semibold text-gray-800 mb-2">{newsTitle}</h3>
-      <p className="text-sm text-gray-600 mb-3 line-clamp-2">{summary}</p>
+      <p className="text-sm text-gray-700 mb-3 line-clamp-2">{summary}</p>
 
       {articleUrl && (
         <div className="text-right">
@@ -23,7 +23,7 @@ export function WeatherNews({
             href={articleUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center text-xs text-blue-600 hover:text-blue-800 hover:underline"
+            className="inline-flex items-center text-xs text-blue-700 hover:text-blue-900 hover:underline font-medium"
           >
             <span className="mr-1">Read more</span>
             <ExternalLink size={12} />
