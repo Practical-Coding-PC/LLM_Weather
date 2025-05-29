@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>날씨 챗봇</title>
+    <title>날씨 & CCTV 챗봇</title>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <style>
         * {
             margin: 0;
@@ -164,7 +165,6 @@
             font-size: 24px;
             font-weight: bold;
             color: #2c3e50;
-            /* margin-bottom: 10px; */
         }
 
         .chat-container {
@@ -356,7 +356,7 @@
 
     <div class="container">
         <div class="header">
-            <div class="title">☁️ 날씨 챗봇 ⭐</div>
+            <div class="title">☁️ 날씨 & CCTV 챗봇 ⭐</div>
         </div>
 
         <div class="chat-container" id="chatContainer">
@@ -364,7 +364,8 @@
                 <div class="welcome-title">안녕! 궁금한걸 물어봐 😊</div>
                 <ul class="welcome-list">
                     <li>오늘 일기예보 확인하기(한파, 폭염, 대설 등)</li>
-                    <li>춘천 효자1동 cctv 보여줘</li>
+                    <li>춘천 효자동 CCTV 보여줘</li>
+                    <li>노원 도로 상황 보여줘</li>
                     <li>오늘 무슨 옷 입을까?</li>
                     <li>그 외 날씨 관련 질문</li>
                 </ul>
@@ -373,8 +374,8 @@
             <div class="quick-buttons">
                 <button class="quick-button" onclick="sendQuickMessage('오늘 날씨 어때?')">오늘 날씨</button>
                 <button class="quick-button" onclick="sendQuickMessage('오늘 비 올까?')">비 예보</button>
-                <button class="quick-button" onclick="sendQuickMessage('지금 운동 나가도 괜찮을까?')">운동하기 좋아?</button>
-                <button class="quick-button" onclick="sendQuickMessage('내일 날씨 어때?')">내일 날씨</button>
+                <button class="quick-button" onclick="sendQuickMessage('춘천 효자동 CCTV 보여줘')">춘천 CCTV</button>
+                <button class="quick-button" onclick="sendQuickMessage('노원 CCTV 보여줘')">노원 CCTV</button>
                 <button class="quick-button" onclick="resetChat()" style="background: #ff6b6b; color: white; border-color: #ff6b6b;">새 채팅 시작</button>
             </div>
         </div>
@@ -396,8 +397,12 @@
     </div>
 
     <script>
-        let currentChatId = null;
-        let currentUserId = 'web_user_' + Date.now(); // 간단한 사용자 ID 생성
+        let currentChatId = localStorage.getItem('weatherChatId') || null;
+        let currentUserId = localStorage.getItem('weatherUserId') || ('web_user_' + Date.now());
+        
+        if (!localStorage.getItem('weatherUserId')) {
+            localStorage.setItem('weatherUserId', currentUserId);
+        }
 
         const chatContainer = document.getElementById('chatContainer');
         const messageInput = document.getElementById('messageInput');
@@ -409,21 +414,16 @@
             const message = messageInput.value.trim();
             if (!message) return;
 
-            // 사용자 메시지 추가
             addMessage(message, 'user');
             messageInput.value = '';
-
-            // 타이핑 인디케이터 표시
             showTypingIndicator();
 
             try {
-                // FastAPI 서버와 통신
                 const requestBody = {
                     message: message,
                     user_id: currentUserId
                 };
                 
-                // 기존 채팅 세션이 있으면 추가
                 if (currentChatId) {
                     requestBody.chat_id = currentChatId;
                 }
@@ -441,10 +441,10 @@
                 if (response.ok) {
                     const data = await response.json();
                     
-                    // 채팅 ID 저장
                     if (data.chat_id) {
                         currentChatId = data.chat_id;
-                        console.log('채팅 ID 업데이트:', currentChatId);
+                        localStorage.setItem('weatherChatId', currentChatId);
+                        console.log('채팅 ID 업데이트 및 저장:', currentChatId);
                     }
                     
                     addMessage(data.reply, 'bot');
@@ -468,11 +468,9 @@
                 if (response.ok) {
                     const data = await response.json();
                     
-                    // 기존 메시지 제거 (환영 메시지 제외)
                     const messages = chatContainer.querySelectorAll('.message');
                     messages.forEach(msg => msg.remove());
                     
-                    // 채팅 기록 추가
                     data.messages.forEach(msg => {
                         addMessage(msg.content, msg.role === 'user' ? 'user' : 'bot');
                     });
@@ -486,28 +484,50 @@
 
         // 채팅 기록 초기화 함수
         function resetChat() {
+            localStorage.removeItem('weatherChatId');
+            
             currentChatId = null;
             currentUserId = 'web_user_' + Date.now();
+            localStorage.setItem('weatherUserId', currentUserId);
             
-            // 메시지 제거 (환영 메시지 제외)
             const messages = chatContainer.querySelectorAll('.message');
             messages.forEach(msg => msg.remove());
             
             console.log('새로운 채팅 세션을 시작합니다.');
+            
+            setTimeout(() => {
+                addMessage('안녕하세요! 날씨와 CCTV에 대해 궁금한 것이 있으면 언제든 물어보세요! 🌤️📹', 'bot');
+            }, 500);
         }
+        
         function sendQuickMessage(message) {
             messageInput.value = message;
             sendMessage();
         }
 
-        // 메시지 추가 함수
+        // 메시지 추가 함수 (HTML 지원)
         function addMessage(text, sender) {
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${sender}`;
             
             const bubbleDiv = document.createElement('div');
             bubbleDiv.className = 'message-bubble';
-            bubbleDiv.textContent = text;
+            
+            // HTML이 포함된 메시지인지 확인
+            if (text.includes('<div') || text.includes('<video') || text.includes('<script')) {
+                bubbleDiv.innerHTML = text;
+                
+                // 스크립트 태그가 있으면 실행
+                const scripts = bubbleDiv.querySelectorAll('script');
+                scripts.forEach(script => {
+                    const newScript = document.createElement('script');
+                    newScript.textContent = script.textContent;
+                    document.body.appendChild(newScript);
+                    document.body.removeChild(newScript);
+                });
+            } else {
+                bubbleDiv.textContent = text;
+            }
             
             messageDiv.appendChild(bubbleDiv);
             chatContainer.appendChild(messageDiv);
@@ -536,7 +556,11 @@
 
         // 초기 인사 메시지
         setTimeout(() => {
-            addMessage('안녕하세요! 날씨에 대해 궁금한 것이 있으면 언제든 물어보세요! 🌤️', 'bot');
+            if (currentChatId) {
+                loadChatHistory();
+            } else {
+                addMessage('안녕하세요! 날씨와 CCTV에 대해 궁금한 것이 있으면 언제든 물어보세요! 🌤️📹', 'bot');
+            }
         }, 1000);
     </script>
 </body>
