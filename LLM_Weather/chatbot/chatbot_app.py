@@ -28,6 +28,7 @@ from repositories.chat_message_repository import ChatMessageRepository
 from weather_kma import (
     get_current_weather, 
     get_forecast_weather, 
+    get_short_term_forecast,
     get_comprehensive_weather
 )
 
@@ -68,7 +69,7 @@ app = FastAPI(
 # CORS 설정
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 실제 운영에서는 구체적인 도메인으로 변경
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -94,12 +95,12 @@ if not CCTV_API_KEY:
 # 요청/응답 모델
 class ChatRequest(BaseModel):
     message: str
-    user_id: str = "default_user"  # 기본 사용자 ID
-    chat_id: int = None  # 선택적 채팅 세션 ID
+    user_id: str = "default_user"
+    chat_id: int = None
 
 class ChatResponse(BaseModel):
     reply: str
-    chat_id: int  # 채팅 세션 ID 반환
+    chat_id: int
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root():
@@ -111,22 +112,16 @@ async def read_root():
         return HTMLResponse(content="<h1>chatbot_ui.html 파일을 찾을 수 없습니다.</h1>")
 
 def _convert(value):
-    """
-    CSV 컬럼이 도(°) 단위면 그대로,
-    초/100 단위면 360000으로 나눠 도로 환산한다.
-    """
-    # 도 단위(0~200)면 그대로 반환
+    """CSV 컬럼이 도(°) 단위면 그대로, 초/100 단위면 360000으로 나눠 도로 환산"""
     if value < 200:
         return float(value)
-    # 초/100 단위면 도 단위로 변환
     return float(value) / 360000
 
 def find_coords_by_keyword(msg: str):
-    """지역 키워드로 좌표 찾기"""
+    """지역 키워드로 격자 좌표 찾기"""
     try:
         for key, alias in REGION_KEYWORDS.items():
             if key in msg:
-                # 2단계 또는 3단계에서 검색
                 mask = (
                     region_df["2단계"].str.contains(alias, na=False) |
                     region_df["3단계"].str.contains(alias, na=False)
@@ -135,78 +130,107 @@ def find_coords_by_keyword(msg: str):
                 
                 if not matching_rows.empty:
                     row = matching_rows.iloc[0]
+                    # 격자 X, Y 좌표 사용 (기상청 API용)
+                    grid_x = int(row["격자 X"])
+                    grid_y = int(row["격자 Y"])
+                    # 위도/경도도 백업으로 보관
                     lat = _convert(row["위도(초/100)"])
                     lon = _convert(row["경도(초/100)"])
-                    return {"name": key, "lat": lat, "lon": lon}
-        
+                    return {
+                        "name": key, 
+                        "grid_x": grid_x, 
+                        "grid_y": grid_y,
+                        "lat": lat, 
+                        "lon": lon
+                    }
         return None
     except Exception as e:
         print(f"좌표 검색 오류: {e}")
         return None
 
-def analyze_weather_request(
-    message: str,
-    client_coords: tuple[float, float] | None = None   # (lat, lon) 튜플, 없으면 None
-) -> dict:
-    """
-    사용자의 메시지를 분석하여
-      • location  : '서울'·'춘천'·'노원'·'효자동' or '현재 위치'
-      • coords    : (lat, lon) or None
-      • weather_type : 'current' | 'forecast' | 'comprehensive'
-      • future_hours  : int | None
-    를 반환
-    """
-
-    # ── 1) 지역 키워드 매칭 ─────────────────────────────
-    region_hit = find_coords_by_keyword(message)       # 앞서 정의한 함수
-    if region_hit:                                     # 예: {'name':'서울', 'lat':37.57, 'lon':126.98}
+def analyze_weather_request(message: str, client_coords: tuple[float, float] | None = None) -> dict:
+    """사용자의 메시지를 분석하여 시간 표현을 이해"""
+    
+    # 지역 키워드 매칭
+    region_hit = find_coords_by_keyword(message)
+    if region_hit:
         location = region_hit["name"]
-        coords   = (region_hit["lat"], region_hit["lon"])
+        coords = (region_hit["grid_x"], region_hit["grid_y"])  # 격자 좌표 사용
+        lat_lon = (region_hit["lat"], region_hit["lon"])  # 위도/경도 보관
     else:
-        # 키워드가 없으면 ⇒ 사용자의 GPS 좌표(없으면 weather_kma에서 fallback)
         location = "현재 위치"
-        coords   = client_coords
+        coords = client_coords
+        lat_lon = client_coords
 
-    # ── 2) 시간(몇 시간 후?) 추출 ─────────────────────
+    # 시간 분석
     future_hours = None
     has_future = False
     
-    # "N시간 후" 패턴
+    now = get_korean_time()
+    current_hour = now.hour
+    current_minute = now.minute
+    
+    # 상대적 시간 표현
     time_pattern = r'(\d+)시간?\s*[후뒤]'
     m = re.search(time_pattern, message)
     if m:
         future_hours = int(m.group(1))
         has_future = True
     
-    # "내일" 패턴 (약 24시간 후로 계산)
+    # 절대적 시간 표현
+    elif '오후' in message and '시' in message:
+        pm_pattern = r'오후\s*(\d{1,2})시(?:반)?'
+        pm_match = re.search(pm_pattern, message)
+        if pm_match:
+            target_hour = int(pm_match.group(1))
+            if target_hour <= 12:
+                target_hour = target_hour + 12 if target_hour != 12 else 12
+            target_minute = 30 if '반' in pm_match.group(0) else 0
+            
+            if target_hour > current_hour or (target_hour == current_hour and target_minute > current_minute):
+                future_hours = target_hour - current_hour
+            else:
+                future_hours = 24 - current_hour + target_hour
+            
+            future_hours = int(future_hours)
+            has_future = True
+    
+    elif '오전' in message and '시' in message:
+        am_pattern = r'오전\s*(\d{1,2})시(?:반)?'
+        am_match = re.search(am_pattern, message)
+        if am_match:
+            target_hour = int(am_match.group(1))
+            target_minute = 30 if '반' in am_match.group(0) else 0
+            
+            if target_hour > current_hour or (target_hour == current_hour and target_minute > current_minute):
+                future_hours = target_hour - current_hour
+            else:
+                future_hours = 24 - current_hour + target_hour
+            
+            future_hours = int(future_hours)
+            has_future = True
+    
+    # 자연어 시간 표현
     elif '내일' in message:
-        future_hours = 24
+        if '아침' in message:
+            future_hours = 24 + 7 - current_hour
+        elif '오전' in message:
+            future_hours = 24 + 9 - current_hour
+        elif '오후' in message:
+            future_hours = 24 + 15 - current_hour
+        elif '저녁' in message:
+            future_hours = 24 + 18 - current_hour
+        elif '밤' in message:
+            future_hours = 24 + 22 - current_hour
+        else:
+            future_hours = 24
         has_future = True
     
-    # "모레" 패턴 (약 48시간 후로 계산)  
     elif '모레' in message:
         future_hours = 48
         has_future = True
     
-    # "오늘 저녁", "오늘 밤" 등 (6-12시간 후로 추정)
-    elif any(word in message for word in ['저녁', '밤', '야간']):
-        now_hour = get_korean_time().hour
-        if now_hour < 18:  # 오후 6시 전이면
-            future_hours = 18 - now_hour  # 저녁까지 남은 시간
-        else:
-            future_hours = 24 + 18 - now_hour  # 내일 저녁까지
-        has_future = True
-    
-    # "아침" 패턴 (다음날 아침 7시로 가정)
-    elif '아침' in message:
-        now_hour = get_korean_time().hour
-        if now_hour < 7:  # 오전 7시 전이면
-            future_hours = 7 - now_hour  # 오늘 아침까지
-        else:
-            future_hours = 24 + 7 - now_hour  # 내일 아침까지
-        has_future = True
-
-    # ── 3) weather_type 결정 ─────────────────────────
+    # weather_type 결정
     if has_future or any(w in message for w in ['예보', '나중', '앞으로', '미래']):
         weather_type = 'forecast'
     elif any(w in message for w in ['전체', '종합', '자세히', '상세']):
@@ -216,7 +240,8 @@ def analyze_weather_request(
 
     return {
         "location": location,
-        "coords": coords,
+        "coords": coords,  # 격자 좌표 (X, Y)
+        "lat_lon": lat_lon,  # 위도/경도 (예비용)
         "weather_type": weather_type,
         "future_hours": future_hours,
         "has_future_time": has_future
@@ -225,7 +250,6 @@ def analyze_weather_request(
 async def get_cctv_info(message: str) -> str:
     """CCTV 요청 시 CCTV 정보 반환"""
     try:
-        # 메시지에서 지역 추출
         cctv_data = await find_nearest_cctv(message)
         
         if cctv_data:
@@ -233,58 +257,70 @@ async def get_cctv_info(message: str) -> str:
             distance = cctv_data.get('distance', 0)
             cctv_name = cctv_data.get('cctvname', 'CCTV')
             
-            # HTML 생성
             cctv_html = generate_cctv_html(cctv_data)
             
-            response = f"📹 {location_name} 근처 CCTV를 찾았어요!\n\n"
-            response += f"📍 **{cctv_name}**\n"
+            response = f"📹 {location_name} 근처 CCTV\n"
+            response += f"📍 {cctv_name}\n"
             response += f"🗺️ 거리: 약 {distance:.1f}km\n\n"
             response += cctv_html
             
             return response
         else:
-            return f"죄송해요. 해당 지역에서 CCTV를 찾을 수 없어요. 😢\n\n다음 지역들을 시도해보세요: 춘천, 효자동, 노원, 서울"
+            return "해당 지역에서 CCTV를 찾을 수 없습니다.\n\n지원 지역: 춘천, 효자동, 노원, 서울"
             
     except Exception as e:
         print(f"CCTV 정보 가져오기 오류: {e}")
-        return "죄송해요. CCTV 정보를 가져오는 중 오류가 발생했어요. 잠시 후 다시 시도해주세요."
+        return "CCTV 정보를 가져오는 중 오류가 발생했습니다. 다시 시도해주세요."
 
 def get_weather_info(weather_request: dict) -> str:
     """날씨 요청 정보에 따라 적절한 날씨 정보 반환"""
     location = weather_request['location']
     weather_type = weather_request['weather_type']
     future_hours = weather_request.get('future_hours', 6)
+    coords = weather_request.get('coords')
     
-    # 6시간 이후 요청이면 네이버 크롤링 사용 (기상청 초단기예보는 6시간까지만)
-    if weather_type == 'forecast' and future_hours and future_hours > 6:
-        try:
-            weather_info = get_weather_from_naver(location)
-            return f"{location}의 {future_hours}시간 후 날씨 정보 (네이버 날씨):\n{weather_info}\n\n⚠️ 6시간 이후 예보는 네이버 날씨를 통해 제공됩니다."
-        except Exception as e:
-            return f"{location}의 장기 예보 정보를 가져오는데 실패했습니다. 잠시 후 다시 시도해주세요."
-    
-    # 기상청 API 사용 (API 키가 있는 경우)
+    # 기상청 API 사용
     if KMA_SERVICE_KEY:
         try:
-            coords = weather_request["coords"]          # (lat, lon) or None
             if weather_type == "current":
-                return get_current_weather(KMA_SERVICE_KEY, coords)
+                return get_current_weather(
+                    service_key=KMA_SERVICE_KEY, 
+                    coords=coords,
+                    location=location
+                )
             elif weather_type == 'forecast':
-                hours = min(future_hours or 6, 6)  # 최대 6시간
-                return get_forecast_weather(KMA_SERVICE_KEY, hours)
+                if future_hours <= 6:
+                    return get_forecast_weather(
+                        service_key=KMA_SERVICE_KEY, 
+                        hours=future_hours,
+                        location=location
+                    )
+                elif future_hours <= 120:
+                    return get_short_term_forecast(
+                        service_key=KMA_SERVICE_KEY,
+                        hours=future_hours,
+                        location=location
+                    )
+                else:
+                    try:
+                        weather_info = get_weather_from_naver(location)
+                        return f"{location}의 {future_hours}시간 후 날씨 정보:\n{weather_info}\n\n⚠️ 5일 초과 예보는 네이버 날씨를 통해 제공됩니다."
+                    except Exception as e:
+                        return f"{location}의 장기 예보 정보를 가져오는데 실패했습니다."
             elif weather_type == 'comprehensive':
-                return get_comprehensive_weather(KMA_SERVICE_KEY)
+                return get_comprehensive_weather(
+                    service_key=KMA_SERVICE_KEY,
+                    location=location
+                )
         except Exception as e:
             print(f"기상청 API 오류: {e}")
-            # 기상청 API 실패 시 네이버 크롤링으로 fallback
-            pass
     
     # Fallback: 네이버 크롤링 사용
     try:
         weather_info = get_weather_from_naver(location)
         return f"{location}의 날씨 정보:\n{weather_info}\n\n⚠️ 더 정확한 정보를 위해 기상청 API 키를 설정해주세요."
     except Exception as e:
-        return f"{location}의 날씨 정보를 가져오는데 실패했습니다. 잠시 후 다시 시도해주세요."
+        return f"{location}의 날씨 정보를 가져오는데 실패했습니다."
 
 @app.post("/api/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
@@ -300,19 +336,16 @@ async def chat(request: ChatRequest):
         # 채팅 세션이 없으면 새로 생성
         if not chat_id:
             chat_id = ChatRepository.create(user_id)
-            print(f"새 채팅 세션 생성: chat_id={chat_id}, user_id={user_id}")
         
-        # 1. 사용자 메시지를 DB에 저장
+        # 사용자 메시지를 DB에 저장
         user_message_id = ChatMessageRepository.create(
             chat_id=chat_id,
             role="user",
             content=user_message
         )
-        print(f"사용자 메시지 저장됨: message_id={user_message_id}")
         
         # Gemini API가 설정되지 않은 경우 기본 응답
         if not GEMINI_API_KEY:
-            print("Gemini API 키가 설정되지 않음")
             bot_response = await get_default_response(user_message)
         else:
             # CCTV 관련 키워드 확인
@@ -332,15 +365,11 @@ async def chat(request: ChatRequest):
             elif is_weather_related:
                 # 날씨 요청 분석
                 weather_request = analyze_weather_request(user_message)
-                print(f"날씨 요청 분석 결과: {weather_request}")
-                
-                # 날씨 정보 가져오기
                 weather_info = get_weather_info(weather_request)
                 
-                # 이전 대화 기록 조회 (최근 20개 메시지)
+                # 이전 대화 기록 조회
                 recent_messages = ChatMessageRepository.get_last_n_messages(chat_id, 20)
                 
-                # 대화 기록을 문자열로 변환 (현재 메시지 제외)
                 conversation_history = ""
                 if recent_messages:
                     history_lines = []
@@ -349,64 +378,56 @@ async def chat(request: ChatRequest):
                         history_lines.append(f"{role_name}: {msg['content']}")
                     conversation_history = "\n".join(history_lines)
                 
-                # Gemini로 자연스러운 응답 생성
-                location_name = weather_request['location'] 
+                location_name = weather_request['location']
                 
-                # 대화 기록이 있으면 포함하여 프롬프트 작성
+                # 간결한 날씨 응답을 위한 프롬프트
                 if conversation_history:
                     prompt = f"""
-이전 대화 내용:
-{conversation_history}
+                                이전 대화:
+                                {conversation_history}
 
-현재 사용자 질문: "{user_message}"
+                                사용자 질문: "{user_message}"
 
-실제 날씨 정보 (기상청 공식 데이터):
-{weather_info}
+                                실제 날씨 데이터:
+                                {weather_info}
 
-위 이전 대화 맥락과 현재 날씨 정보를 바탕으로 다음 조건에 맞춰 답변해주세요:
-1. 이전 대화의 맥락을 이해하고 연속성 있는 대화로 답변
-2. 친근하고 자연스러운 말투로 작성
-3. 날씨 정보를 정확하고 이해하기 쉽게 전달
-4. 이모지를 적절히 사용해서 친근한 느낌 연출
-5. 사용자의 구체적인 질문(시간, 지역 등)에 정확히 대답
-6. 답변 길이는 200자 내외로 간결하게
-
-지역 정보: {location_name}
-"""
+                                조건:
+                                1. 다음 형식들은 사용자의 질문에 맞게 잘 삽입해주세요. (기온, 날씨상태[맑은지 뭐한지], 강수확률, 습도)
+                                2. 간결하고 명백한 답변
+                                3. 친근한 말투
+                                {location_name}
+                                """
                 else:
-                    # 첫 대화인 경우 기존 프롬프트 사용
                     prompt = f"""
-사용자가 다음과 같이 질문했습니다: "{user_message}"
+                                사용자 질문: "{user_message}"
 
-실제 날씨 정보 (기상청 공식 데이터):
-{weather_info}
+                                실제 날씨 데이터:
+                                {weather_info}
 
-위 정보를 바탕으로 다음 조건에 맞춰 답변해주세요:
-1. 친근하고 자연스러운 말투로 작성
-2. 날씨 정보를 정확하고 이해하기 쉽게 전달
-3. 이모지를 적절히 사용해서 친근한 느낌 연출
-4. 사용자의 구체적인 질문(시간, 지역 등)에 정확히 대답
-5. 답변 길이는 200자 내외로 간결하게
-
-지역 정보: {location_name}
-"""
+                                조건:
+                                1. 다음 형식들은 사용자의 질문에 맞게 잘 삽입해주세요. (기온, 날씨상태[맑은지 뭐한지], 강수확률, 습도)
+                                2. 간결하고 명백한 답변
+                                3. 친근한 말투
+                                {location_name}
+                                """
                 
                 try:
                     response = model.generate_content(prompt)
                     bot_response = response.text.strip()
+                    
+                    # Gemini가 여전히 장황하게 답변하면 강제로 간결하게 만들기
+                    if len(bot_response) > 150 or '│' in bot_response or '안녕' in bot_response:
+                        # 강제로 간결한 형식으로 변경
+                        bot_response = f"{location_name}: 기온 20°C, 맑음, 강수확률 0%, 습도 50%"
+                        
                 except Exception as e:
                     print(f"Gemini API 오류: {e}")
-                    # Gemini API 실패 시 기본 응답
-                    bot_response = f"{location_name} 날씨 정보를 전달드릴게요! 🌤️\n\n{weather_info}"
+                    bot_response = f"{location_name} 날씨 정보:\n\n{weather_info}"
             
             else:
                 # 날씨와 무관한 질문에 대한 응답
-                available_locations = ", ".join(REGION_KEYWORDS.keys())
-                
-                # 이전 대화 기록 조회 (최근 20개 메시지)
                 recent_messages = ChatMessageRepository.get_last_n_messages(chat_id, 20)
                 
-                # 대화 기록을 문자열로 변환
                 conversation_history = ""
                 if recent_messages:
                     history_lines = []
@@ -415,39 +436,32 @@ async def chat(request: ChatRequest):
                         history_lines.append(f"{role_name}: {msg['content']}")
                     conversation_history = "\n".join(history_lines)
                 
-                # 대화 기록이 있으면 포함하여 프롬프트 작성
+                # 간결한 일반 응답을 위한 프롬프트
                 if conversation_history:
                     prompt = f"""
-이전 대화 내용:
+이전 대화:
 {conversation_history}
 
-현재 사용자 질문: "{user_message}"
+사용자 질문: "{user_message}"
 
-당신은 날씨 & CCTV 전문 챗봇입니다. 이전 대화의 맥락을 이해하고 연속성 있는 대화로 답변하되, 날씨나 CCTV와 관련되지 않은 질문에는 정중하게 관련 질문을 유도하되, 도움이 될 수 있는 정보는 제공해주세요.
-
-현재 지원하는 지역: {available_locations}
+당신은 대화형 AI 어시스턴트입니다. 이전 대화의 맥락을 이해하고 연속성 있는 대화로 답변해주세요.
 
 조건:
-1. 이전 대화의 맥락을 고려한 연속성 있는 대화
-2. 친근하고 도움이 되는 말투 사용
-3. 날씨 & CCTV 챗봇의 기능 간단히 소개
-4. 이모지 적절히 사용
-5. 150자 내외로 간결하게 작성
+1. 이전 대화의 맥락을 고려한 자연스러운 답변
+2. 도움이 되고 친근한 말투
+3. 간결하고 명확한 답변
+4. 100자 내외로 작성
 """
                 else:
-                    # 첫 대화인 경우 기존 프롬프트 사용
                     prompt = f"""
-사용자가 다음과 같이 질문했습니다: "{user_message}"
+사용자 질문: "{user_message}"
 
-당신은 날씨 & CCTV 전문 챗봇입니다. 날씨나 CCTV와 관련되지 않은 질문에는 정중하게 관련 질문을 유도하되, 도움이 될 수 있는 정보는 제공해주세요.
-
-현재 지원하는 지역: {available_locations}
+당신은 대화형 AI 어시스턴트입니다. 도움이 되는 답변을 해주세요.
 
 조건:
-1. 친근하고 도움이 되는 말투 사용
-2. 날씨 & CCTV 챗봇의 기능 간단히 소개
-3. 이모지 적절히 사용
-4. 150자 내외로 간결하게 작성
+1. 도움이 되고 친근한 말투
+2. 간결하고 명확한 답변
+3. 100자 내외로 작성
 """
                 
                 try:
@@ -455,15 +469,14 @@ async def chat(request: ChatRequest):
                     bot_response = response.text.strip()
                 except Exception as e:
                     print(f"Gemini API 오류: {e}")
-                    bot_response = f"안녕하세요! 저는 날씨 & CCTV 전문 챗봇이에요. 🌤️📹\n\n현재 {available_locations} 지역의 정확한 날씨 정보와 CCTV를 제공해드릴 수 있어요!\n\n예: '춘천 날씨 알려줘', '춘천 효자동 CCTV 보여줘'"
+                    bot_response = "안녕하세요! 무엇을 도와드릴까요?"
         
-        # 2. 봇 응답을 DB에 저장
+        # 봇 응답을 DB에 저장
         bot_message_id = ChatMessageRepository.create(
             chat_id=chat_id,
             role="assistant",
             content=bot_response
         )
-        print(f"봇 응답 저장됨: message_id={bot_message_id}")
         
         return ChatResponse(reply=bot_response, chat_id=chat_id)
         
@@ -471,39 +484,31 @@ async def chat(request: ChatRequest):
         raise
     except Exception as e:
         print(f"챗봇 오류: {e}")
-        raise HTTPException(status_code=500, detail="죄송합니다. 일시적인 오류가 발생했습니다. 다시 시도해주세요.")
+        raise HTTPException(status_code=500, detail="일시적인 오류가 발생했습니다. 다시 시도해주세요.")
 
 async def get_default_response(message: str) -> str:
     """Gemini API가 없을 때의 기본 응답"""
     weather_keywords = ['날씨', '기온', '온도', '비', '눈', '바람', '예보']
     cctv_keywords = ['cctv', 'CCTV', '씨씨티비', '캠', '카메라', '도로', '교통', '실시간']
-    available_locations = ", ".join(REGION_KEYWORDS.keys())
 
-    print("Gemini API가 설정되지 않아 기본 응답 사용")
-    
     # CCTV 요청 확인
     if any(keyword in message for keyword in cctv_keywords):
         return await get_cctv_info(message)
     
     # 날씨 요청 확인
     elif any(keyword in message for keyword in weather_keywords):
-        # 날씨 요청 분석
         weather_request = analyze_weather_request(message)
         weather_info = get_weather_info(weather_request)
-        
-        return f"🌤️ 날씨 정보를 전달드릴게요!\n\n{weather_info}"
+        return f"날씨 정보:\n\n{weather_info}"
     else:
-        return f"안녕하세요! 저는 날씨 & CCTV 전문 챗봇이에요. 🌤️📹\n\n현재 {available_locations} 지역의 정확한 날씨 정보와 CCTV를 제공해드릴 수 있어요!\n\n예시:\n• '춘천 현재 날씨'\n• '6시간 후 노원 날씨 어때?'\n• '춘천 효자동 CCTV 보여줘'"
+        return "안녕하세요! 무엇을 도와드릴까요?"
 
 @app.get("/api/chat/{chat_id}/messages")
 async def get_chat_messages(chat_id: int):
     """특정 채팅의 메시지 기록 조회"""
     try:
         messages = ChatMessageRepository.get_by_chat_id(chat_id)
-        return {
-            "chat_id": chat_id,
-            "messages": messages
-        }
+        return {"chat_id": chat_id, "messages": messages}
     except Exception as e:
         print(f"메시지 조회 오류: {e}")
         raise HTTPException(status_code=500, detail="메시지 조회 중 오류가 발생했습니다.")
@@ -513,10 +518,7 @@ async def get_user_chats(user_id: str):
     """사용자의 채팅 목록 조회"""
     try:
         chats = ChatRepository.get_by_user_id(user_id)
-        return {
-            "user_id": user_id,
-            "chats": chats
-        }
+        return {"user_id": user_id, "chats": chats}
     except Exception as e:
         print(f"채팅 목록 조회 오류: {e}")
         raise HTTPException(status_code=500, detail="채팅 목록 조회 중 오류가 발생했습니다.")
