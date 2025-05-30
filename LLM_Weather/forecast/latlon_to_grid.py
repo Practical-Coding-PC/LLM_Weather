@@ -1,7 +1,8 @@
 import math
 
+# KMA 격자변환 공식으로 위도 경도를 격자 좌표로 반환한다.
 def latlon_to_grid(lat, lon):
-    # KMA 격자변환 공식
+    
     RE, GRID = 6371.00877, 5.0
     SLAT1, SLAT2 = 30.0, 60.0
     OLON, OLAT = 126.0, 38.0
