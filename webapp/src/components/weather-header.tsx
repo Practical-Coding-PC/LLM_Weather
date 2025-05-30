@@ -1,69 +1,33 @@
-import React from "react";
-
 type WeatherHeaderProps = {
-  location: string;
   currentTemp: string;
-  highTemp: string;
-  lowTemp: string;
-  weatherMessage: string;
 };
 
-export function WeatherHeader({
-  location,
-  currentTemp,
-  highTemp,
-  lowTemp,
-  weatherMessage,
-}: WeatherHeaderProps) {
+export function WeatherHeader({ currentTemp }: WeatherHeaderProps) {
   return (
-    <div className="mb-4 pt-4">
-      <div className="flex justify-between items-start">
-        <div className="text-xl font-bold">{location}</div>
-        <div className="text-xl">99</div>
-      </div>
-
-      <div className="flex justify-between items-center">
+    <div className="px-6 py-8">
+      <div className="flex justify-between items-start mb-6">
         <div>
-          <div className="text-6xl font-bold">{currentTemp}</div>
-          <div className="text-xl">
-            ( <span className="text-red-500">{highTemp}</span> /{" "}
-            <span className="text-blue-500">{lowTemp}</span> )
-          </div>
-        </div>
-        <div className="relative">
-          <div className="relative">
-            <svg
-              width="120"
-              height="120"
-              viewBox="0 0 120 120"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                d="M40 70C40 50 60 45 75 60C90 75 100 50 100 50"
-                stroke="#3B82F6"
-                strokeWidth="2"
-              />
-              <circle
-                cx="60"
-                cy="60"
-                r="25"
+          <div className="flex items-center gap-1 mb-4">
+            <h2 className="text-gray-700 text-lg font-medium">기온 </h2>
+            <span>
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
                 fill="none"
-                stroke="#374151"
-                strokeWidth="2"
-              />
-              <path
-                d="M50 55C50 55 55 60 60 60C65 60 70 55 70 55"
-                stroke="#374151"
-                strokeWidth="2"
-              />
-              <circle cx="50" cy="50" r="3" fill="#374151" />
-              <circle cx="70" cy="50" r="3" fill="#374151" />
-            </svg>
-            <div className="absolute top-0 right-0 bg-white rounded-xl p-2 border border-gray-300">
-              &ldquo;{weatherMessage}&rdquo;
-            </div>
+                xmlns="http://www.w3.org/2000/svg"
+                className="text-gray-500 mb-1"
+              >
+                <path
+                  d="M12 2C10.34 2 9 3.34 9 5V14.5C7.79 15.57 7 17.18 7 19C7 21.76 9.24 24 12 24S17 21.76 17 19C17 17.18 16.21 15.57 15 14.5V5C15 3.34 13.66 2 12 2ZM12 22C10.34 22 9 20.66 9 19C9 17.34 10.34 16 12 16S15 17.34 15 19C15 20.66 13.66 22 12 22Z"
+                  fill="currentColor"
+                />
+              </svg>
+            </span>
           </div>
+          <span className="text-6xl font-light text-gray-800 drop-shadow-sm">
+            {currentTemp}
+          </span>
         </div>
       </div>
     </div>

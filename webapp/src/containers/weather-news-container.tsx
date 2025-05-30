@@ -9,11 +9,15 @@ type NewsArticle = {
   articleUrl: string;
 };
 
+interface WeatherNewsContainerProps {
+  latitude: number;
+  longitude: number;
+}
+
 export function WeatherNewsContainer({
-  location = "춘천",
-}: {
-  location?: string;
-}) {
+  latitude,
+  longitude,
+}: WeatherNewsContainerProps) {
   const [newsArticles, setNewsArticles] = useState<NewsArticle[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -23,9 +27,7 @@ export function WeatherNewsContainer({
       try {
         setLoading(true);
         const response = await fetch(
-          `http://localhost:8000/weather/news?location=${encodeURIComponent(
-            location
-          )}`
+          `http://localhost:8000/weather/news?latitude=${latitude}&longitude=${longitude}`
         );
 
         if (!response.ok) {
@@ -43,21 +45,37 @@ export function WeatherNewsContainer({
     };
 
     fetchNews();
-  }, [location]);
+  }, [latitude, longitude]);
 
   if (loading) {
-    return <div className="p-4">날씨 뉴스 로딩중...</div>;
+    return (
+      <div className="p-6">
+        <div className="bg-white/30 backdrop-blur-sm rounded-lg p-4 text-center">
+          <div className="text-gray-700 font-medium">날씨 뉴스 로딩중...</div>
+        </div>
+      </div>
+    );
   }
 
   if (error) {
-    return <div className="p-4 text-red-500">에러: {error}</div>;
+    return (
+      <div className="p-6">
+        <div className="bg-red-100/50 backdrop-blur-sm border border-red-200/50 rounded-lg p-4 text-center">
+          <div className="text-red-700 font-medium">에러: {error}</div>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="space-y-4">
-      <h2 className="text-xl font-semibold mb-4">{location} 날씨 뉴스</h2>
+    <div className="px-6 space-y-4">
+      <h2 className="text-xl font-bold text-gray-800 mb-4 drop-shadow-sm">
+        현재 위치 날씨 뉴스
+      </h2>
       {newsArticles.length === 0 ? (
-        <div>뉴스 기사가 없습니다.</div>
+        <div className="bg-white/30 backdrop-blur-sm rounded-lg p-4 text-center">
+          <div className="text-gray-700 font-medium">뉴스 기사가 없습니다.</div>
+        </div>
       ) : (
         newsArticles.map((article, index) => (
           <a
