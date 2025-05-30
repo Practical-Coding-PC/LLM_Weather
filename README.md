@@ -143,3 +143,6 @@ curl --location 'http://127.0.0.1:8000/weather/short_term?latitude=37.879984&lon
   ]
 }
 ```
+<br><br>
+#### 라. 참고 링크 (예보 자료 구분 코드 등)
+<a href = "https://www.data.go.kr/data/15084084/openapi.do">기상청_단기예보 ((구)_동네예보) 조회서비스</a>
