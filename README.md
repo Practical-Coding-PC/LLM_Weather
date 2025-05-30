@@ -9,68 +9,90 @@
 (1) 서버 실행: `uvicorn server.app:app --reload`<br>
 (2) 서버 종료: `ctrl+c`
 
-### 3. 서버 요청 테스트 방법 (날씨 기사 요약 정보 요청)
-**Postman을 기준으로 설명하였습니다.**<br>
+### 3. API 명세
 
-(1) **요청 방법**
-http://127.0.0.1:8000/weather/news?latitude={latitude}&longitude={longitude} 과 같이 요청해주시면 됩니다.<br>
-ex) http://127.0.0.1:8000/weather/news?latitude=36.479522&longitude=127.289448
+#### 가. 날씨 기사 요약 정보 API 요청<br>
 
-(2) **요청 참고자료** <br>
-![Image](https://github.com/user-attachments/assets/17ac70d3-ca78-4d2e-92ca-a657a4d8a436)
-
-(3) **응답 예시**
+##### Request Syntax
 ```bash
-[
+    curl -X GET "http://127.0.0.1:8000/weather/news?latitude=37.56&longitude=126.97" \
+     -H "Accept: application/json
+```
+
+##### Request Elements
+| Query Parameter | Type   | Description                |
+|-----------------|--------|----------------------|
+| `latitude`      | float  | 위도 (예: `37.56`)   |
+| `longitude`     | float  | 경도 (예: `126.97`)  |
+
+##### Response Elements
+| Element           | Type    | Description              |
+|-------------------|---------|--------------------------|
+| `articleTitle`    | string  | 기사 제목                |
+| `articleSummary`  | string  | 기사 요약                |
+| `articleUrl`      | string  | 기사 원문 URL            |
+
+##### Response Example (200 OK)
+```json
+    [
+        {
+            "articleTitle": "'세종시 국민체력100 체력증진교실' 시민 만족도 높아",
+            "articleSummary": "세종시체육회의 '2025년 국민체력100 체력증진교실'이 시민들의 적극적인 참여 속에 진행되고 있습니다. \n만 19세 이상 세종시민을 대상으로 주 3회 진행되는 이 프로그램은 시민들의 건강 증진과 삶의 질 개선에 기여하고 있습니다. \n참여자들은 체력 향상, 통증 완화, 수면 패턴 개선 등의 효과를 보고 있으며, 운동을 통해 자신감과 성취감을 얻고 있습니다. \n세종시체육회는 시민들의 안전을 최우선으로 고려하여 프로그램을 운영하고 있으며, 생활체육 저변 확대에 힘쓰고 있습니다.\n이 프로그램은 세종국민체력100 인증센터가 매년 최우수 평가를 받는데 기여하고 있습니다.",
+            "articleUrl": "http://www.enewstoday.co.kr/news/articleView.html?idxno=2267561"
+      }
+        ...
+    ]
+```
+
+<br><br>
+#### 나. 초단기 예보 조회 API 요청
+
+##### Request Syntax
+```bash
+curl -X GET "http://127.0.0.1:8000/weather/short_term?latitude=37.56&longitude=126.97&base_time=0630" \
+     -H "Accept: application/json"
+```
+
+##### Request Elements
+| Query Parameter | Type   |  Description                                 |
+|-----------------|--------|-----------------------------------------|
+| `latitude`      | float  | 위도 (예: `37.56`)                      |
+| `longitude`     | float  | 경도 (예: `126.97`)                     |
+| `base_time`     | string | 발표 시각 (30분 단위, 예: `"0630"`)     |
+
+##### Response Elements
+| Element        | Type             | Description                         |
+|----------------|------------------|-------------------------------------|
+| `requestCode`  | string           | 처리 결과 코드 (“200” 등)           |
+| `items`        | array of object  | 예보 항목 리스트                    |
+
+##### items 객체 요소
+| Element       | Type    | Description                                 |
+|---------------|---------|---------------------------------------------|
+| `fcstDate`    | string  | 예보 일자 (YYYYMMDD)                        |
+| `fcstTime`    | string  | 예보 시각 (HHMM)                            |
+| `category`    | string  | 예보 자료 구분 코드 (e.g. LGT, PTY, T1H 등) |
+| `fcstValue`   | string  | 예보 값                                     |
+
+##### Response Example (200 OK)
+
+```json
     {
-        "articleTitle": "세종호수공원부터 대통령기록관까지",
-        "articleSummary": "세종시는 자연친화적으로 설계된 복합 문화·행정 도시로, 세종호수공원, 국립세종수목원, 대통령기록관 등 다양한 명소가 위치해 있습니다. 고복자연공원은 자연 속 힐링을 원하는 이들에게 추천되며, 세종문화예술회관, 베어트리파크, 합강캠핑장 등도 방문할 가치가 있습니다. 세종시는 교통이 편리하여 당일치기 여행지로 적합합니다.",
-        "articleUrl": "https://www.tournews21.com/news/articleView.html?idxno=102267"
-    },
-    {
-        "articleTitle": "세종시, 봄철산불조심기간 산불피해 최소화 성공",
-        "articleSummary": "세종특별자치시는 봄철 산불조심기간 동안 산불 발생 건수가 1건에 그쳐 산불 예방 및 피해 최소화에 성공했습니다. 주요 원인으로 산불감시원 및 진화대 운영, 예방 캠페인, 현수막 설치 등 적극적인 예방 활동을 추진했습니다. 특히, 전국적인 산불 위기경보 '심각' 단계 발령 후에는 전 직원과 마을순찰대가 순찰을 강화하고, 시 전체 산림에 입산금지 명령을 발동하는 등 총력 대응했습니다. 유일하게 발생한 산불은 전동면 심중리에서 발생했으며, 0.07ha 면적을 태우고 조기 진화되었습니다.",
-        "articleUrl": "http://www.cctimes.kr/news/articleView.html?idxno=846458"
-    },
-    {
-        "articleTitle": "세종시, 봄철산불조심기간 산불피해 최소화 성공",
-        "articleSummary": "세종시는 봄철 산불조심기간 동안 산불 예방 활동을 강화하여 발생 건수를 1건으로 최소화했습니다. 전동면 심중리에서 발생한 산불로 0.07ha 면적이 소실되었으나 조기에 진화되었습니다. 시는 산불감시원, 진화대 운영, 예방 캠페인, 입산 금지 등의 조치를 시행했으며, 특히 전국적인 산불 위기경보 발령 후 순찰 활동을 강화했습니다.",
-        "articleUrl": "https://daily.hankooki.com/news/articleView.html?idxno=1216816"
-    },
-    {
-        "articleTitle": "[르포]\"콘서트 보러 청주서 왔어요\"…동행축제에 활기 띈세종",
-        "articleSummary": "5월 동행축제 개막 행사가 세종시 세종중앙공원에서 중소벤처기업부 주최로 3일간 열린다. \n66개 부스가 운영되며, 이무진의 '영수증 콘서트' 티켓 400장이 4시간 만에 매진되었다.",
-        "articleUrl": "https://www.news1.kr/industry/sb-founded/5773064"
-    },
-    {
-        "articleTitle": "[오늘의날씨] 충북·세종(4일, 일)…낮 20~23도 대체로 맑음",
-        "articleSummary": "오늘 충북과 세종은 흐리고 저녁부터 곳곳에 비가 내리겠습니다. 낮 최고 기온은 28도까지 오르며 초여름 날씨를 보이겠습니다. 중부지방은 퇴근길에 비가 올 수 있습니다. 괴산군은 봄철 산불 예방 활동으로 산불 발생 건수가 0건입니다.",
-        "articleUrl": "https://www.news1.kr/local/sejong-chungbuk/5773089"
-    },
-    {
-        "articleTitle": "\"세종시민이 변할께\"...2025 기후변화 대응 퍼포먼스 눈길",
-        "articleSummary": "세종시가 지구의 날과 기후변화 주간을 맞아 다양한 참여 이벤트를 개최하여 시민들의 적극적인 참여를 유도했습니다. 주요 행사로는 기후·환경 작품 전시회, 어린이 시·그림대회, 탄소중립 체험 부스, 탄소중립 달인 걷기 행사, 기후환경 영화제 등이 있었습니다. 특히 매월 22일 20시에는 소등 캠페인을 통해 에너지 절약과 온실가스 감축을 실천하고 탄소중립 문화를 확산할 계획입니다. 행사 참여자들은 다양한 경품을 받고 푸드트럭과 함께 야유회를 즐겼습니다. 세종시는 앞으로도 시민들의 참여를 통해 기후변화에 적극적으로 대응할 것을 밝혔습니다.",
-        "articleUrl": "https://www.joongdo.co.kr/web/view.php?key=20250428010009963"
-    },
-    {
-        "articleTitle": "세종시 '밤마실' 종합 선물세트...4월 26일 어디로 갈까",
-        "articleSummary": "4월 25일부터 27일까지 세종시에서 '4월 밤마실 주간'이 운영되며, 다양한 야간 문화관광 행사와 대중교통 연계 인센티브가 제공됩니다. 26일에는 낮 최고 19도의 맑은 날씨가 예상되며, 기후변화 주간 이벤트와 낙화 축제, 국립세종수목원 무료 개방 등이 진행됩니다. 정부세종청사 옥상정원에서는 '달빛 야경 투어'가 열립니다(사전 예약자 한정). 인근 상가에서는 식음료 할인 등 다양한 이벤트가 진행되어 지역 경제 활성화에도 기여할 것으로 기대됩니다.",
-        "articleUrl": "https://www.joongdo.co.kr/web/view.php?key=20250423010008308"
-    },
-    {
-        "articleTitle": "'세종시 국민체력100 체력증진교실' 시민 만족도 높아",
-        "articleSummary": "세종시체육회의 '2025년 국민체력100 체력증진교실'이 시민들의 적극적인 참여 속에 진행되고 있습니다. \n만 19세 이상 세종시민을 대상으로 주 3회 진행되는 이 프로그램은 시민들의 건강 증진과 삶의 질 개선에 기여하고 있습니다. \n참여자들은 체력 향상, 통증 완화, 수면 패턴 개선 등의 효과를 보고 있으며, 운동을 통해 자신감과 성취감을 얻고 있습니다. \n세종시체육회는 시민들의 안전을 최우선으로 고려하여 프로그램을 운영하고 있으며, 생활체육 저변 확대에 힘쓰고 있습니다.\n이 프로그램은 세종국민체력100 인증센터가 매년 최우수 평가를 받는데 기여하고 있습니다.",
-        "articleUrl": "http://www.enewstoday.co.kr/news/articleView.html?idxno=2267561"
-    },
-    {
-        "articleTitle": "[세종날씨] 맑고 따뜻한 오후…체감온도 19.6도",
-        "articleSummary": "4월 16일 세종특별자치시는 맑고 따뜻하며, 오후 1시 기준 기온은 19.6도, 체감온도도 동일하다. 미세먼지, 초미세먼지 모두 '좋음' 단계로 대기질은 양호하나, 자외선 지수는 '높음'이다. 습도는 45%로 쾌적하며, 남동풍이 초속 2.2m로 불고 있다. 오후에는 23도까지 오르겠고, 자정에는 14도 안팎으로 예상된다. 일몰 시각은 오후 7시 5분이다.",
-        "articleUrl": "https://www.topstarnews.net/news/articleView.html?idxno=15639852"
-    },
-    {
-        "articleTitle": "세종시 복사꽃 전국 마라톤대회 성료...4000여 명 건각, 뜨거운 열기",
-        "articleSummary": "세종시에서 열린 마라톤 대회에 4000여 명이 참가하여 성황리에 마무리되었다. 궂은 날씨 속에서도 참가자들은 세종시민운동장과 연서면 일원을 순환하는 코스를 완주했다. 5km, 10km 종목별 남녀 1~3위에게는 영예가 돌아갔다. 참가자들에게는 파스류, 기념품, 소보루, 국수 등이 제공되었으며, 체력인증센터, 푸드트럭 등 다양한 즐길 거리가 마련되었다.",
-        "articleUrl": "https://www.joongdo.co.kr/web/view.php?key=20250413010004584"
+      "requestCode": "200",
+      "items": [
+            {
+            "fcstDate": "20250530",
+            "fcstTime": "0700",
+            "category": "LGT",
+            "fcstValue": "0"
+            },
+                ...
+        ]
     }
-]
-~~~
+```
+
+
+
+
+
+
