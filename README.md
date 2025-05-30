@@ -15,7 +15,7 @@
 
 ##### Request Syntax
 ```bash
-    curl -X GET "http://127.0.0.1:8000/weather/news?latitude=37.56&longitude=126.97" \
+curl -X GET "http://127.0.0.1:8000/weather/news?latitude=37.56&longitude=126.97" \
      -H "Accept: application/json
 ```
 
@@ -34,14 +34,14 @@
 
 ##### Response Example (200 OK)
 ```json
-    [
-        {
-            "articleTitle": "'세종시 국민체력100 체력증진교실' 시민 만족도 높아",
-            "articleSummary": "세종시체육회의 '2025년 국민체력100 체력증진교실'이 시민들의 적극적인 참여 속에 진행되고 있습니다. \n만 19세 이상 세종시민을 대상으로 주 3회 진행되는 이 프로그램은 시민들의 건강 증진과 삶의 질 개선에 기여하고 있습니다. \n참여자들은 체력 향상, 통증 완화, 수면 패턴 개선 등의 효과를 보고 있으며, 운동을 통해 자신감과 성취감을 얻고 있습니다. \n세종시체육회는 시민들의 안전을 최우선으로 고려하여 프로그램을 운영하고 있으며, 생활체육 저변 확대에 힘쓰고 있습니다.\n이 프로그램은 세종국민체력100 인증센터가 매년 최우수 평가를 받는데 기여하고 있습니다.",
-            "articleUrl": "http://www.enewstoday.co.kr/news/articleView.html?idxno=2267561"
-      }
-        ...
-    ]
+[
+  {
+    "articleTitle": "'세종시 국민체력100 체력증진교실' 시민 만족도 높아",
+    "articleSummary": "세종시체육회의 '2025년 국민체력100 체력증진교실'이 시민들의 적극적인 참여 속에 진행되고 있습니다.<br>만 19세 이상 세종시민을 대상으로 주 3회 진행되는 이 프로그램은 시민들의 건강 증진과 삶의 질 개선에 기여하고 있습니다.<br>참여자들은 체력 향상, 통증 완화, 수면 패턴 개선 등의 효과를 보고 있으며, 운동을 통해 자신감과 성취감을 얻고 있습니다.<br>세종시체육회는 시민들의 안전을 최우선으로 고려하여 프로그램을 운영하고 있으며, 생활체육 저변 확대에 힘쓰고 있습니다.<br>이 프로그램은 세종국민체력100 인증센터가 매년 최우수 평가를 받는데 기여하고 있습니다.",
+    "articleUrl": "http://www.enewstoday.co.kr/news/articleView.html?idxno=2267561"
+  },
+  ...
+]
 ```
 
 <br><br>
@@ -49,7 +49,7 @@
 
 ##### Request Syntax
 ```bash
-curl -X GET "http://127.0.0.1:8000/weather/short_term?latitude=37.56&longitude=126.97&base_time=0630" \
+curl -X GET "http://127.0.0.1:8000/weather/ultra_short_term?latitude=37.56&longitude=126.97&base_time=0630" \
      -H "Accept: application/json"
 ```
 
@@ -77,18 +77,24 @@ curl -X GET "http://127.0.0.1:8000/weather/short_term?latitude=37.56&longitude=1
 ##### Response Example (200 OK)
 
 ```json
+{
+  "requestCode": "200",
+  "items": [
     {
-      "requestCode": "200",
-      "items": [
-            {
-            "fcstDate": "20250530",
-            "fcstTime": "0700",
-            "category": "LGT",
-            "fcstValue": "0"
-            },
-                ...
-        ]
-    }
+      "fcstDate": "20250530",
+      "fcstTime": "0700",
+      "category": "LGT",
+      "fcstValue": "0"
+    },
+    {
+      "fcstDate": "20250530",
+      "fcstTime": "0800",
+      "category": "PTY",
+      "fcstValue": "0"
+    },
+    ...
+  ]
+}
 ```
 
 
