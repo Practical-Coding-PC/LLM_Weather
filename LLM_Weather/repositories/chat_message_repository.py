@@ -1,4 +1,13 @@
 from db.db_connection import get_db_cursor
+from datetime import datetime
+import pytz
+
+# 한국 시간대 설정
+KST = pytz.timezone('Asia/Seoul')
+
+def get_korean_time():
+    """한국 시간으로 현재 시간 반환"""
+    return datetime.now(KST).strftime('%Y-%m-%d %H:%M:%S')
 
 class ChatMessageRepository:
     """채팅 메시지 작업을 위한 저장소"""
@@ -6,10 +15,11 @@ class ChatMessageRepository:
     @staticmethod
     def create(chat_id, role, content):
         """새로운 채팅 메시지 생성"""
+        korean_time = get_korean_time()
         with get_db_cursor() as cursor:
             cursor.execute(
-                "INSERT INTO chat_messages (chat_id, role, content) VALUES (?, ?, ?)",
-                (chat_id, role, content)
+                "INSERT INTO chat_messages (chat_id, role, content, created_at) VALUES (?, ?, ?, ?)",
+                (chat_id, role, content, korean_time)
             )
             return cursor.lastrowid
     
