@@ -15,15 +15,14 @@
 
 ##### Request Syntax
 ```bash
-curl -X GET "http://127.0.0.1:8000/weather/news?latitude=37.56&longitude=126.97" \
-     -H "Accept: application/json
+curl --location 'http://127.0.0.1:8000/weather/news?latitude=37.33908333&longitude=127.9220556'
 ```
 
 ##### Request Elements
-| Query Parameter | Type   | Description                |
-|-----------------|--------|----------------------|
-| `latitude`      | float  | 위도 (예: `37.56`)   |
-| `longitude`     | float  | 경도 (예: `126.97`)  |
+| Query Parameter | Type   |  Description                                 |
+|-----------------|--------|-----------------------------------------|
+| `latitude`      | float  | 위도 (예: `37.33908333`)                      |
+| `longitude`     | float  | 경도 (예: `127.9220556`)                     |
 
 ##### Response Elements
 | Element           | Type    | Description              |
@@ -49,16 +48,14 @@ curl -X GET "http://127.0.0.1:8000/weather/news?latitude=37.56&longitude=126.97"
 
 ##### Request Syntax
 ```bash
-curl -X GET "http://127.0.0.1:8000/weather/ultra_short_term?latitude=37.56&longitude=126.97&base_time=0630" \
-     -H "Accept: application/json"
+curl --location 'http://127.0.0.1:8000/weather/ultra_short_term?latitude=37.879984&longitude=127.727479'
 ```
 
 ##### Request Elements
 | Query Parameter | Type   |  Description                                 |
 |-----------------|--------|-----------------------------------------|
-| `latitude`      | float  | 위도 (예: `37.56`)                      |
-| `longitude`     | float  | 경도 (예: `126.97`)                     |
-| `base_time`     | string | 발표 시각 (30분 단위, 예: `"0630"`)     |
+| `latitude`      | float  | 위도 (예: `37.879984`)                      |
+| `longitude`     | float  | 경도 (예: `127.727479`)                     |
 
 ##### Response Elements
 | Element        | Type             | Description                         |
@@ -97,8 +94,52 @@ curl -X GET "http://127.0.0.1:8000/weather/ultra_short_term?latitude=37.56&longi
 }
 ```
 
+<br><br>
+#### 다. 단기 예보 조회 API 요청
 
+##### Request Syntax
+```bash
+curl --location 'http://127.0.0.1:8000/weather/short_term?latitude=37.879984&longitude=127.727479'
+```
 
+##### Request Elements
+| Query Parameter | Type   |  Description                                 |
+|-----------------|--------|-----------------------------------------|
+| `latitude`      | float  | 위도 (예: `37.879984`)                      |
+| `longitude`     | float  | 경도 (예: `127.727479`)                     |
 
+##### Response Elements
+| Element        | Type             | Description                         |
+|----------------|------------------|-------------------------------------|
+| `requestCode`  | string           | 처리 결과 코드 (“200” 등)           |
+| `items`        | array of object  | 예보 항목 리스트                    |
 
+##### items 객체 요소
+| Element       | Type    | Description                                 |
+|---------------|---------|---------------------------------------------|
+| `fcstDate`    | string  | 예보 일자 (YYYYMMDD)                        |
+| `fcstTime`    | string  | 예보 시각 (HHMM)                            |
+| `category`    | string  | 예보 자료 구분 코드 (e.g. TMP, UUU, VVV 등) |
+| `fcstValue`   | string  | 예보 값                                     |
 
+##### Response Example (200 OK)
+```json
+{
+  "requestCode": "200",
+  "items": [
+    {
+      "fcstDate": "20250531",
+       "fcstTime": "0000",
+       "category": "TMP",
+       "fcstValue": "14"
+    },
+    {
+       "fcstDate": "20250531",
+       "fcstTime": "0000",
+       "category": "UUU",
+       "fcstValue": "-0.4"
+    },
+    ...
+  ]
+}
+```
