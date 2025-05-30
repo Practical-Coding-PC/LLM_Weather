@@ -7,15 +7,15 @@ type ChatAssistantProps = {
 
 export function ChatAssistant({ onClick }: ChatAssistantProps) {
   return (
-    <div className="flex justify-end">
+    <div className="flex justify-end p-6">
       <Link href="/chat">
         <div
-          className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center cursor-pointer"
+          className="w-14 h-14 bg-white/40 backdrop-blur-sm border border-white/30 rounded-full flex items-center justify-center cursor-pointer hover:bg-white/60 transition-all duration-200 shadow-lg hover:shadow-xl"
           onClick={onClick}
         >
           <svg
-            width="24"
-            height="24"
+            width="26"
+            height="26"
             viewBox="0 0 24 24"
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
