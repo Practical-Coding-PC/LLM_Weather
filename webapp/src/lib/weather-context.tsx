@@ -13,8 +13,8 @@ interface WeatherContextType {
   setCurrentTemp: (temp: number) => void;
   location: string;
   setLocation: (location: string) => void;
-  userId: string;
-  setUserId: (userId: string) => void;
+  userId: number;
+  setUserId: (userId: number) => void;
 }
 
 const WeatherContext = createContext<WeatherContextType | undefined>(undefined);
@@ -24,8 +24,9 @@ interface WeatherProviderProps {
 }
 
 // 랜덤한 userId 생성 함수
-const generateUserId = (): string => {
-  return Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
+const generateUserId = (): number => {
+  // 6자리 정수 (100000 ~ 999999)
+  return Math.floor(100000 + Math.random() * 900000);
 };
 
 export const WeatherProvider: React.FC<WeatherProviderProps> = ({
@@ -33,17 +34,17 @@ export const WeatherProvider: React.FC<WeatherProviderProps> = ({
 }) => {
   const [currentTemp, setCurrentTemp] = useState<number>(20); // 기본값 20도
   const [location, setLocation] = useState<string>("현재 위치");
-  const [userId, setUserId] = useState<string>("");
+  const [userId, setUserId] = useState<number>();
 
   // localStorage에서 userId 불러오기 또는 생성하기
   useEffect(() => {
     if (typeof window !== "undefined") {
-      let storedUserId = localStorage.getItem("userId");
+      let storedUserId = Number(localStorage.getItem("userId"));
 
       if (!storedUserId) {
         // userId가 없으면 랜덤한 값 생성
         storedUserId = generateUserId();
-        localStorage.setItem("userId", storedUserId);
+        localStorage.setItem("userId", storedUserId?.toString());
       }
 
       setUserId(storedUserId);
@@ -51,10 +52,10 @@ export const WeatherProvider: React.FC<WeatherProviderProps> = ({
   }, []);
 
   // userId가 변경될 때 localStorage에 저장
-  const handleSetUserId = (newUserId: string) => {
+  const handleSetUserId = (newUserId: number) => {
     setUserId(newUserId);
     if (typeof window !== "undefined") {
-      localStorage.setItem("userId", newUserId);
+      localStorage.setItem("userId", newUserId.toString());
     }
   };
 
@@ -65,7 +66,7 @@ export const WeatherProvider: React.FC<WeatherProviderProps> = ({
         setCurrentTemp,
         location,
         setLocation,
-        userId,
+        userId: userId || 0,
         setUserId: handleSetUserId,
       }}
     >

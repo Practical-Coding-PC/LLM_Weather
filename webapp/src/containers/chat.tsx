@@ -2,6 +2,11 @@ import { useState, useEffect, useRef } from "react";
 import { ChatMessage } from "../components/chat-message";
 import { ChatInput } from "../components/chat-input";
 import { useWeather } from "../lib/weather-context";
+import {
+  sendChatMessage,
+  getChatMessages,
+  type ChatMessage as APIChatMessage,
+} from "../lib/chat-api";
 
 type Message = {
   id: string;
@@ -21,48 +26,72 @@ const getTemperatureGradient = (temp: number): string => {
   return "from-purple-50 via-blue-25 to-white";
 };
 
+// API 메시지를 UI 메시지로 변환하는 함수
+const convertAPIMessageToUIMessage = (apiMessage: APIChatMessage): Message => ({
+  id: apiMessage.id.toString(),
+  message: apiMessage.content,
+  sender: apiMessage.role,
+  timestamp: new Date(apiMessage.created_at),
+});
+
 export function Chat() {
   const { currentTemp: weatherTemp, userId } = useWeather();
   const [status, setStatus] = useState<"idle" | "sending" | "responding">(
     "idle"
   );
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "0",
-      message: "날씨에 대해 알려줄게요",
-      sender: "assistant",
-      timestamp: new Date(),
-    },
-    {
-      id: "1",
-      message: "오늘 날씨 어때?",
-      sender: "user",
-      timestamp: new Date(),
-    },
-    {
-      id: "2",
-      message: "오늘은 맑고 따뜻해요.",
-      sender: "assistant",
-      timestamp: new Date(),
-    },
-    {
-      id: "3",
-      message: "주말에 등산 갈 계획인데 날씨가 좋았으면 좋겠네.",
-      sender: "user",
-      timestamp: new Date(),
-    },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [chatId, setChatId] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // userId가 로드되면 콘솔에 출력
+  // 컴포넌트 마운트 시 초기 메시지 설정
   useEffect(() => {
-    if (userId) {
-      console.log("Current User ID:", userId);
+    if (messages.length === 0) {
+      setMessages([
+        {
+          id: "welcome",
+          message:
+            "안녕하세요! 날씨와 CCTV 정보에 대해 궁금한 것이 있으시면 언제든 물어보세요. 🌤️📹",
+          sender: "assistant",
+          timestamp: new Date(),
+        },
+      ]);
     }
-  }, [userId]);
+  }, [messages.length]);
 
-  const handleSendMessage = (text: string) => {
+  // chatId가 있으면 이전 대화 기록 로드
+  useEffect(() => {
+    const loadChatHistory = async () => {
+      if (chatId && userId) {
+        try {
+          setIsLoading(true);
+          const response = await getChatMessages(chatId);
+          const uiMessages = response.messages.map(
+            convertAPIMessageToUIMessage
+          );
+          setMessages(uiMessages);
+        } catch (err) {
+          console.error("대화 기록 로드 실패:", err);
+          setError("대화 기록을 불러오는데 실패했습니다.");
+        } finally {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadChatHistory();
+  }, [chatId, userId]);
+
+  const handleSendMessage = async (text: string) => {
+    if (!userId) {
+      setError("사용자 ID가 설정되지 않았습니다.");
+      return;
+    }
+
     setStatus("sending");
+    setError(null);
+
     const newMessage: Message = {
       id: Date.now().toString(),
       message: text,
@@ -73,21 +102,44 @@ export function Chat() {
     setMessages((prev) => [...prev, newMessage]);
     setStatus("responding");
 
-    // 여기서 userId를 사용하여 API 호출을 할 수 있습니다
-    console.log("Sending message with userId:", userId, "Message:", text);
+    try {
+      const response = await sendChatMessage({
+        message: text,
+        user_id: userId.toString(),
+        chat_id: chatId || undefined,
+      });
 
-    setTimeout(() => {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: Date.now().toString(),
-          message: "서버로부터 온 응답이 여기에 들어갈 것입니다...",
-          sender: "assistant" as const,
-          timestamp: new Date(),
-        },
-      ]);
+      // 첫 번째 메시지인 경우 chatId 설정
+      if (!chatId) {
+        setChatId(response.chat_id);
+      }
+
+      const botMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        message: response.reply,
+        sender: "assistant",
+        timestamp: new Date(),
+      };
+
+      setMessages((prev) => [...prev, botMessage]);
       setStatus("idle");
-    }, 1000);
+    } catch (err) {
+      console.error("메시지 전송 실패:", err);
+      setError(
+        err instanceof Error ? err.message : "메시지 전송에 실패했습니다."
+      );
+
+      // 에러 발생 시 사용자 메시지는 그대로 두고 에러 메시지 추가
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        message: "죄송합니다. 일시적인 오류가 발생했습니다. 다시 시도해주세요.",
+        sender: "assistant",
+        timestamp: new Date(),
+      };
+
+      setMessages((prev) => [...prev, errorMessage]);
+      setStatus("idle");
+    }
   };
 
   // 자동 스크롤 기능
@@ -106,10 +158,10 @@ export function Chat() {
       <div className="p-4 border-b border-white/20">
         <div className="bg-white/30 backdrop-blur-sm rounded-lg p-4">
           <h1 className="text-xl font-bold text-gray-800 text-center">
-            날씨 챗봇
+            날씨 & CCTV 챗봇
           </h1>
           <p className="text-sm text-gray-600 text-center mt-1">
-            궁금한 날씨 정보를 물어보세요
+            날씨 정보와 CCTV 영상을 확인하세요
           </p>
           {/* 개발용: userId 표시 */}
           {userId && (
@@ -117,29 +169,41 @@ export function Chat() {
               User ID: {userId}
             </p>
           )}
+          {/* 에러 메시지 표시 */}
+          {error && (
+            <div className="mt-2 p-2 bg-red-100/80 text-red-800 text-sm rounded border border-red-200/50">
+              {error}
+            </div>
+          )}
         </div>
       </div>
 
       {/* 메시지 영역 */}
       <div className="flex-1 p-4 overflow-y-auto">
-        <div className="space-y-4">
-          {messages.map((msg) => (
-            <ChatMessage
-              key={msg.id}
-              message={msg.message}
-              sender={msg.sender}
-              timestamp={msg.timestamp}
-            />
-          ))}
-          {status === "responding" && (
-            <ChatMessage
-              message="..."
-              sender="assistant"
-              timestamp={new Date()}
-            />
-          )}
-          <div ref={messagesEndRef} />
-        </div>
+        {isLoading ? (
+          <div className="flex justify-center items-center h-full">
+            <div className="text-gray-600">대화 기록을 불러오는 중...</div>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {messages.map((msg) => (
+              <ChatMessage
+                key={msg.id}
+                message={msg.message}
+                sender={msg.sender}
+                timestamp={msg.timestamp}
+              />
+            ))}
+            {status === "responding" && (
+              <ChatMessage
+                message="답변을 생성하고 있습니다..."
+                sender="assistant"
+                timestamp={new Date()}
+              />
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+        )}
       </div>
 
       {/* 입력 영역 */}
@@ -147,8 +211,21 @@ export function Chat() {
         <div className="bg-white/30 backdrop-blur-sm rounded-lg p-4">
           <ChatInput
             onSendMessage={handleSendMessage}
-            disabled={status === "sending" || status === "responding"}
+            disabled={
+              status === "sending" || status === "responding" || !userId
+            }
+            placeholder={
+              !userId
+                ? "사용자 ID를 설정 중입니다..."
+                : "날씨나 CCTV에 대해 궁금한 것을 물어보세요..."
+            }
           />
+          {status !== "idle" && (
+            <div className="text-xs text-gray-600 mt-2 text-center">
+              {status === "sending" && "메시지 전송 중..."}
+              {status === "responding" && "응답 대기 중..."}
+            </div>
+          )}
         </div>
       </div>
     </div>
