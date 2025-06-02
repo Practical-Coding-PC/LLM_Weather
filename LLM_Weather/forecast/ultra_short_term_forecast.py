@@ -60,7 +60,7 @@ async def fetch_ultra_short_term_forecast(latitude: float, longitude: float) -> 
 
     url = "http://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getUltraSrtFcst"
 
-    serviceKey = os.getenv("SHORT_TERM_WEATHER_KEY")
+    serviceKey = os.getenv("KMA_SERVICE_KEY")
 
     # 기상청에서 예보를 발표하는 기준 시각을 입력으로 넣어야 하므로, 주어진 리스트에서 현재 시간에서 가깝고 직전인 시각을 선택한다.
     today = datetime.today()
