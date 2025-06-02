@@ -36,7 +36,7 @@ export function ChatInput({
           onChange={(e) => setMessage(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none min-h-[50px] max-h-[150px] overflow-auto"
+          className="w-full px-4 py-3 bg-white/50 backdrop-blur-sm border border-white/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400/50 focus:border-blue-400/50 resize-none min-h-[50px] max-h-[150px] overflow-auto placeholder-gray-500 text-gray-800 shadow-sm"
           rows={2}
           autoFocus
         />
@@ -44,11 +44,11 @@ export function ChatInput({
       <button
         type="submit"
         disabled={!message.trim() || disabled}
-        className={`p-2 rounded-full ${
+        className={`p-2 rounded-full transition-colors w-10 h-10 flex items-center justify-center backdrop-blur-sm border shadow-sm ${
           !message.trim() || disabled
-            ? "bg-gray-300 text-gray-500"
-            : "bg-blue-500 text-white hover:bg-blue-600"
-        } transition-colors w-10 h-10 flex items-center justify-center`}
+            ? "bg-gray-300/50 text-gray-500 border-gray-300/30"
+            : "bg-blue-500/80 text-white hover:bg-blue-600/80 border-blue-400/30"
+        }`}
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"

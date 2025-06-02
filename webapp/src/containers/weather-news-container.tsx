@@ -78,15 +78,12 @@ export function WeatherNewsContainer({
         </div>
       ) : (
         newsArticles.map((article, index) => (
-          <a
+          <WeatherNews
             key={index}
-            href={article.link_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block"
-          >
-            <WeatherNews newsTitle={article.title} summary={article.summary} />
-          </a>
+            newsTitle={article.title}
+            summary={article.summary}
+            articleUrl={article.link_url}
+          />
         ))
       )}
     </div>

@@ -1,14 +1,16 @@
+import { ChatAssistant } from "./chat-assistant";
+
 type WeatherHeaderProps = {
   currentTemp: string;
 };
 
 export function WeatherHeader({ currentTemp }: WeatherHeaderProps) {
   return (
-    <div className="px-6 py-8">
+    <div className="px-6 py-8 flex justify-between items-start">
       <div className="flex justify-between items-start mb-6">
         <div>
           <div className="flex items-center gap-1 mb-4">
-            <h2 className="text-gray-700 text-lg font-medium">기온 </h2>
+            <h2 className="text-gray-700 text-lg">기온 </h2>
             <span>
               <svg
                 width="20"
@@ -25,10 +27,13 @@ export function WeatherHeader({ currentTemp }: WeatherHeaderProps) {
               </svg>
             </span>
           </div>
-          <span className="text-6xl font-light text-gray-800 drop-shadow-sm">
+          <span className="text-6xl font-semibold text-gray-800 drop-shadow-sm">
             {currentTemp}
           </span>
         </div>
+      </div>
+      <div className="flex justify-end items-center">
+        <ChatAssistant />
       </div>
     </div>
   );
