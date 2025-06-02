@@ -1,5 +1,6 @@
 import asyncio
 import time
+from datetime import datetime, UTC, timedelta
 import aiohttp
 import trafilatura
 from bs4 import BeautifulSoup
@@ -10,6 +11,8 @@ import litellm
 from litellm import acompletion
 from dotenv import load_dotenv
 from typing import List, Tuple, Optional
+
+from repositories.news_repository import NewsRepository
 
 async def get_city_from_coordinates(latitude: float, longitude: float) -> str:
     """
@@ -309,11 +312,24 @@ async def export_news_summaries_json(latitude: float, longitude: float) -> dict:
         dict: 뉴스의 'title', 'summary', 'url'을 포함하는 딕셔너리.
     """
 
-    start_time = time.time()
+
+    start_time_epoch = time.time()
     location = await get_city_from_coordinates(latitude, longitude)
     print(f"카카오맵에서 반환한 행정구역(시) 이름: {location}")
-    end_time = time.time()
-    print(f"좌표 -> 행정구역(시) 변환 시간: {end_time - start_time}")
+    end_time_epoch = time.time()
+    print(f"좌표 -> 행정구역(시) 변환 시간: {end_time_epoch - start_time_epoch}")
+
+    # UTC 변환 및 포맷팅
+    end_time_utc = datetime.fromtimestamp(end_time_epoch, UTC).strftime("%Y-%m-%d %H:%M:%S")
+    one_hour_ago = datetime.fromtimestamp(end_time_epoch, UTC) - timedelta(hours=1)
+    start_time_utc = one_hour_ago.strftime("%Y-%m-%d %H:%M:%S")
+
+    news_list = NewsRepository.get_by_location_and_time_range(location, start_time_utc, end_time_utc)
+
+    # 뉴스 데이터베이스에 저장된 뉴스가 있다면, 그 뉴스를 반환한다.
+    if len(news_list) > 0:
+        print(f"뉴스 데이터베이스에 저장된 뉴스가 있습니다. 뉴스 데이터베이스에 저장된 뉴스를 반환합니다.")
+        return json.dumps(news_list, ensure_ascii=False, indent=2)
 
     start_time = time.time()
     link_list, title_list, news_list = await get_naver_weather_news_crawler(location)
@@ -340,9 +356,9 @@ async def export_news_summaries_json(latitude: float, longitude: float) -> dict:
 
     export_list = [
         {
-            "articleTitle": title,
-            "articleSummary": summary,
-            "articleUrl": link,
+            "title": title,
+            "summary": summary,
+            "link_url": link,
         }
         for title, summary, link in zip(title_list, response_list, link_list)
         if title and summary and link and (summary.strip() != undesired_summary_text)
@@ -350,6 +366,10 @@ async def export_news_summaries_json(latitude: float, longitude: float) -> dict:
 
     # 날씨 요약 기사는 최대 5개까지만 반환
     export_list = export_list[:5]
+
+    # 뉴스 데이터베이스에 저장
+    for news in export_list:
+        NewsRepository.create(location, news["title"], news["summary"], news["link_url"])
 
     return json.dumps(export_list, ensure_ascii=False, indent=2)
     

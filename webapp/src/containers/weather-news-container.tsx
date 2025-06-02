@@ -4,9 +4,9 @@ import { useEffect, useState } from "react";
 import { WeatherNews } from "../components/weather-news";
 
 type NewsArticle = {
-  articleTitle: string;
-  articleSummary: string;
-  articleUrl: string;
+  title: string;
+  summary: string;
+  link_url: string;
 };
 
 interface WeatherNewsContainerProps {
@@ -80,9 +80,9 @@ export function WeatherNewsContainer({
         newsArticles.map((article, index) => (
           <WeatherNews
             key={index}
-            newsTitle={article.articleTitle}
-            summary={article.articleSummary}
-            articleUrl={article.articleUrl}
+            newsTitle={article.title}
+            summary={article.summary}
+            articleUrl={article.link_url}
           />
         ))
       )}

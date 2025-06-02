@@ -24,17 +24,17 @@ export const ChatMessage: FC<ChatMessageProps> = ({
       >
         <div>
           <div
-            className={`rounded-lg px-4 py-2 ${
+            className={`rounded-lg px-4 py-3 backdrop-blur-sm border ${
               sender === "user"
-                ? "bg-blue-500 text-white rounded-tr-none"
-                : "bg-gray-200 text-gray-800 rounded-tl-none"
-            }`}
+                ? "bg-blue-500/80 text-white rounded-tr-none border-blue-400/30"
+                : "bg-white/40 text-gray-800 rounded-tl-none border-white/30"
+            } shadow-sm`}
           >
             <p className="break-words">{message}</p>
           </div>
 
           <div
-            className={`text-xs text-gray-500 mt-1 ${
+            className={`text-xs text-gray-600 mt-1 ${
               sender === "user" ? "text-right" : "text-left"
             }`}
           >
