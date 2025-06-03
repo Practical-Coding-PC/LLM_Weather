@@ -284,18 +284,7 @@ async def get_cctv_info(message: str) -> str:
         cctv_data = await find_nearest_cctv(message)
         
         if cctv_data:
-            location_name = cctv_data.get('target_location', '지역')
-            distance = cctv_data.get('distance', 0)
-            cctv_name = cctv_data.get('cctvname', 'CCTV')
-            
-            cctv_html = generate_cctv_html(cctv_data)
-            
-            response = f"📹 {location_name} 근처 CCTV\n"
-            response += f"📍 {cctv_name}\n"
-            response += f"🗺️ 거리: 약 {distance:.1f}km\n\n"
-            response += cctv_html
-            
-            return response
+            return f"cctv_data:{cctv_data}"
         else:
             return "해당 지역에서 CCTV를 찾을 수 없습니다.\n\n지원 지역: 춘천, 효자동, 노원, 서울"
             

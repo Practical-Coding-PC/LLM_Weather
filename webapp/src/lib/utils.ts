@@ -8,3 +8,7 @@ export const getTemperatureGradient = (temp: number): string => {
   if (temp >= 5) return "from-indigo-50 via-purple-25 to-white";
   return "from-purple-50 via-blue-25 to-white";
 };
+
+export const cn = (...classes: (string | boolean | undefined)[]) => {
+  return classes.filter(Boolean).join(" ");
+};
