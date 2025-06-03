@@ -4,19 +4,12 @@ import { WeatherNewsContainer } from "./weather-news-container";
 import { HourlyForecast } from "../components/hourly-forecast";
 import { ChatAssistant } from "../components/chat-assistant";
 import { useWeather } from "../lib/weather-context";
-
-// API 응답 타입 정의
-interface WeatherApiItem {
-  fcstDate: string;
-  fcstTime: string;
-  category: string;
-  fcstValue: string;
-}
-
-interface WeatherApiResponse {
-  requestCode: string;
-  items: WeatherApiItem[];
-}
+import { getTemperatureGradient } from "../lib/utils";
+import {
+  getUltraShortTermWeather,
+  type UltraShortTermWeatherResponse,
+  type WeatherApiItem,
+} from "../lib/weather-api";
 
 // 시간대별 날씨 데이터 타입
 interface TimeSlot {
@@ -28,17 +21,6 @@ interface TimeSlot {
   windV: number; // 남북바람성분 (VVV)
   humidity: number; // 습도 (REH)
 }
-
-// 기온에 따른 배경 그라데이션 색상 (더 연하고 흰색에 가까운 색상)
-const getTemperatureGradient = (temp: number): string => {
-  if (temp >= 30) return "from-red-50 via-orange-25 to-white";
-  if (temp >= 25) return "from-orange-50 via-yellow-25 to-white";
-  if (temp >= 20) return "from-yellow-50 via-green-25 to-white";
-  if (temp >= 15) return "from-green-50 via-blue-25 to-white";
-  if (temp >= 10) return "from-blue-50 via-indigo-25 to-white";
-  if (temp >= 5) return "from-indigo-50 via-purple-25 to-white";
-  return "from-purple-50 via-blue-25 to-white";
-};
 
 // 시간 포맷팅 함수 (HHMM -> H PM/AM)
 const formatTime = (timeString: string): string => {
@@ -116,56 +98,58 @@ export function WeatherDashboard() {
     };
   }, []);
 
-  // 날씨 데이터 가져오기 함수
-  const fetchWeatherData = async (latitude: number, longitude: number) => {
-    setIsLoadingWeather(true);
-    setWeatherError(null);
-
-    try {
-      const response = await fetch(
-        `http://127.0.0.1:8000/weather/ultra_short_term?latitude=${latitude}&longitude=${longitude}`
-      );
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data: WeatherApiResponse = await response.json();
-
-      if (data.requestCode !== "200") {
-        throw new Error(`API error! code: ${data.requestCode}`);
-      }
-
-      const timeSlots = processWeatherData(data.items);
-      const currentTemp =
-        timeSlots.length > 0 ? `${timeSlots[0].temp}°C` : "N/A";
-      const currentTempNumber = timeSlots.length > 0 ? timeSlots[0].temp : 20;
-
-      // Context에 온도 데이터 업데이트
-      setCurrentTemp(currentTempNumber);
-      setWeatherLocation("현재 위치");
-
-      setWeatherData({
-        location: "현재 위치",
-        currentTemp,
-        timeSlots,
-      });
-    } catch (error) {
-      console.error("날씨 데이터 가져오기 실패:", error);
-      setWeatherError(
-        error instanceof Error
-          ? error.message
-          : "날씨 데이터를 가져올 수 없습니다."
-      );
-      // 에러 발생 시에는 weatherData를 null로 설정
-      setWeatherData(null);
-    } finally {
-      setIsLoadingWeather(false);
-    }
-  };
-
-  // 위치 정보 가져오기
+  // 위치 정보 가져오기 및 날씨 데이터 가져오기 통합 Effect
   useEffect(() => {
+    const fetchAndSetWeatherData = async (
+      lat: number,
+      lon: number
+    ) => {
+      setIsLoadingWeather(true);
+      setWeatherError(null);
+      try {
+        // API 호출 (새로운 함수 사용)
+        const data: UltraShortTermWeatherResponse =
+          await getUltraShortTermWeather(lat, lon);
+
+        // API 응답에서 requestCode 확인 (실제 API 스펙에 따라 다를 수 있음)
+        // 예를 들어, 성공 코드가 '200'이 아닌 다른 값일 수 있거나,
+        // 또는 HTTP 상태 코드로만 성공 여부를 판단할 수도 있습니다.
+        // 여기서는 기존 로직과 유사하게 requestCode를 확인합니다.
+        if (data.requestCode !== "200") {
+          // 실제 API가 오류 메시지를 어떻게 반환하는지에 따라 에러 처리를 조정해야 합니다.
+          // 예를 들어 data.message 또는 다른 필드에 오류 내용이 있을 수 있습니다.
+          throw new Error(
+            `API error with code: ${data.requestCode}`
+          );
+        }
+
+        const timeSlots = processWeatherData(data.items);
+        const currentTemp =
+          timeSlots.length > 0 ? `${timeSlots[0].temp}°C` : "N/A";
+        const currentTempNumber =
+          timeSlots.length > 0 ? timeSlots[0].temp : 20;
+
+        setCurrentTemp(currentTempNumber);
+        setWeatherLocation("현재 위치"); // 위치 이름은 필요시 API 응답이나 다른 방법으로 설정
+
+        setWeatherData({
+          location: "현재 위치", // 이 부분도 API 응답이나 다른 소스에서 가져올 수 있음
+          currentTemp,
+          timeSlots,
+        });
+      } catch (error) {
+        console.error("날씨 데이터 가져오기 실패:", error);
+        setWeatherError(
+          error instanceof Error
+            ? error.message
+            : "날씨 데이터를 가져올 수 없습니다."
+        );
+        setWeatherData(null);
+      } finally {
+        setIsLoadingWeather(false);
+      }
+    };
+
     if (!navigator.geolocation) {
       setLocationError("이 브라우저는 위치 서비스를 지원하지 않습니다.");
       return;
@@ -178,9 +162,7 @@ export function WeatherDashboard() {
           longitude: position.coords.longitude,
         };
         setLocation(newLocation);
-
-        // 위치를 얻으면 바로 날씨 데이터 가져오기
-        fetchWeatherData(newLocation.latitude, newLocation.longitude);
+        fetchAndSetWeatherData(newLocation.latitude, newLocation.longitude);
       },
       (error) => {
         let errorMessage = "위치를 가져올 수 없습니다.";
@@ -248,10 +230,15 @@ export function WeatherDashboard() {
               </div>
               <div className="text-red-600 text-sm mb-3">{weatherError}</div>
               <button
-                onClick={() =>
-                  location &&
-                  fetchWeatherData(location.latitude, location.longitude)
-                }
+                onClick={() => {
+                  if (location) {
+                    // fetchAndSetWeatherData를 직접 호출하도록 변경
+                    fetchAndSetWeatherData(
+                      location.latitude,
+                      location.longitude
+                    );
+                  }
+                }}
                 className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
                 disabled={isLoadingWeather}
               >

@@ -2,12 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { WeatherNews } from "../components/weather-news";
-
-type NewsArticle = {
-  title: string;
-  summary: string;
-  link_url: string;
-};
+import {
+  getWeatherNews,
+  type WeatherNewsItem,
+  type WeatherNewsResponse,
+} from "../lib/weather-api";
 
 interface WeatherNewsContainerProps {
   latitude: number;
@@ -18,33 +17,34 @@ export function WeatherNewsContainer({
   latitude,
   longitude,
 }: WeatherNewsContainerProps) {
-  const [newsArticles, setNewsArticles] = useState<NewsArticle[]>([]);
+  // Use WeatherNewsItem as the state type
+  const [newsArticles, setNewsArticles] = useState<WeatherNewsItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchNews = async () => {
+    const loadWeatherNews = async () => {
+      setLoading(true);
+      setError(null);
       try {
-        setLoading(true);
-        const response = await fetch(
-          `http://localhost:8000/weather/news?latitude=${latitude}&longitude=${longitude}`
+        const response: WeatherNewsResponse = await getWeatherNews(
+          latitude,
+          longitude
         );
-
-        if (!response.ok) {
-          throw new Error(`Failed to fetch news: ${response.status}`);
-        }
-
-        const data = await response.json();
-        setNewsArticles(data as NewsArticle[]);
+        // The API returns an object with a 'news' property
+        setNewsArticles(response.news || []);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "에러 발생");
+        const errorMessage =
+          err instanceof Error ? err.message : "뉴스를 불러오는데 실패했습니다.";
+        setError(errorMessage);
         console.error("날씨 뉴스 가져오기 에러:", err);
+        setNewsArticles([]); // Clear articles on error
       } finally {
         setLoading(false);
       }
     };
 
-    fetchNews();
+    loadWeatherNews();
   }, [latitude, longitude]);
 
   if (loading) {
@@ -78,11 +78,13 @@ export function WeatherNewsContainer({
         </div>
       ) : (
         newsArticles.map((article, index) => (
+          // Adapt props for WeatherNews component
+          // It expects newsTitle, summary, articleUrl
           <WeatherNews
-            key={index}
+            key={article.id} // Use unique id from news item
             newsTitle={article.title}
-            summary={article.summary}
-            articleUrl={article.link_url}
+            summary={article.summary || ""} // Provide default for optional summary
+            articleUrl={article.url} // Use url field
           />
         ))
       )}
