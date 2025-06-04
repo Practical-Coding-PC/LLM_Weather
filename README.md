@@ -35,9 +35,9 @@ curl --location 'http://127.0.0.1:8000/weather/news?latitude=37.33908333&longitu
 ```json
 [
   {
-    "articleTitle": "'세종시 국민체력100 체력증진교실' 시민 만족도 높아",
-    "articleSummary": "세종시체육회의 '2025년 국민체력100 체력증진교실'이 시민들의 적극적인 참여 속에 진행되고 있습니다.<br>만 19세 이상 세종시민을 대상으로 주 3회 진행되는 이 프로그램은 시민들의 건강 증진과 삶의 질 개선에 기여하고 있습니다.<br>참여자들은 체력 향상, 통증 완화, 수면 패턴 개선 등의 효과를 보고 있으며, 운동을 통해 자신감과 성취감을 얻고 있습니다.<br>세종시체육회는 시민들의 안전을 최우선으로 고려하여 프로그램을 운영하고 있으며, 생활체육 저변 확대에 힘쓰고 있습니다.<br>이 프로그램은 세종국민체력100 인증센터가 매년 최우수 평가를 받는데 기여하고 있습니다.",
-    "articleUrl": "http://www.enewstoday.co.kr/news/articleView.html?idxno=2267561"
+    "title": "'세종시 국민체력100 체력증진교실' 시민 만족도 높아",
+    "summary": "세종시체육회의 '2025년 국민체력100 체력증진교실'이 시민들의 적극적인 참여 속에 진행되고 있습니다.<br>만 19세 이상 세종시민을 대상으로 주 3회 진행되는 이 프로그램은 시민들의 건강 증진과 삶의 질 개선에 기여하고 있습니다.<br>참여자들은 체력 향상, 통증 완화, 수면 패턴 개선 등의 효과를 보고 있으며, 운동을 통해 자신감과 성취감을 얻고 있습니다.<br>세종시체육회는 시민들의 안전을 최우선으로 고려하여 프로그램을 운영하고 있으며, 생활체육 저변 확대에 힘쓰고 있습니다.<br>이 프로그램은 세종국민체력100 인증센터가 매년 최우수 평가를 받는데 기여하고 있습니다.",
+    "link_url": "http://www.enewstoday.co.kr/news/articleView.html?idxno=2267561"
   },
   ...
 ]
@@ -144,5 +144,48 @@ curl --location 'http://127.0.0.1:8000/weather/short_term?latitude=37.879984&lon
 }
 ```
 <br><br>
-#### 라. 참고 링크 (예보 자료 구분 코드 등)
+#### 라. 서버 상태 확인
+
+##### Request Syntax
+```bash
+curl --location 'http://127.0.0.1:8000/health'
+```
+
+##### Request Elements
+해당 엔드포인트는 별도 요청 바디나 쿼리 파라미터가 없습니다.
+
+##### Response Elements
+##### Response Elements
+
+| Element              | Type           | Description                                                                      |
+| -------------------- | -------------- | -------------------------------------------------------------------------------- |
+| status               | string         | 서버 상태를 나타냅니다. 가능한 값: `"healthy"` (정상)                   |
+| gemini\_api          | string         | Gemini API 키 설정 여부를 나타냅니다. 가능한 값: `"configured"` (설정됨), `"not_configured"` (미설정) |
+| kma\_api             | string         | 기상청 API 설정 여부를 나타냅니다. 가능한 값: `"configured"` (설정됨), `"not_configured"` (미설정)      |
+| cctv\_api            | string         | CCTV API 키 설정 여부를 나타냅니다. 가능한 값: `"configured"` (설정됨), `"not_configured"` (미설정)   |
+| supported\_locations | array\[string] | 서버가 현재 지원하는 지역 목록을 문자열 배열로 반환합니다. 예: `["서울", "춘천", "노원", ...]`                   |
+
+
+##### Response Example (200 OK)
+```json
+{
+    "status": "healthy",
+    "gemini_api": "configured",
+    "kma_api": "configured",
+    "cctv_api": "configured",
+    "supported_locations": [
+        "서울",
+        "춘천",
+        "노원",
+        "효자동",
+        "효자",
+        "월계동",
+        "중계동",
+        "상계동",
+        "하계동"
+    ]
+}
+```
+<br><br>
+#### 마. 참고 링크 (예보 자료 구분 코드 등)
 <a href = "https://www.data.go.kr/data/15084084/openapi.do">기상청_단기예보 ((구)_동네예보) 조회서비스</a>
