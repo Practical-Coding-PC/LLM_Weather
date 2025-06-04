@@ -13,7 +13,7 @@ export function ChatAssistant({ isSticky = false }: ChatAssistantProps) {
           isSticky
             ? "h-14 bg-white/20 backdrop-blur-md rounded-xl"
             : "h-16 bg-white/10 backdrop-blur-md rounded-2xl"
-        } flex items-center justify-between px-6 cursor-pointer hover:bg-white/30 transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-105 transform border border-gray-200`}
+        } flex items-center justify-between px-4 cursor-pointer hover:bg-white/30 transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-105 transform border border-gray-200`}
       >
         <div className="flex items-center space-x-3">
           <div

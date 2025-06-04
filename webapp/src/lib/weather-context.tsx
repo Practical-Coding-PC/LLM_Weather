@@ -13,8 +13,7 @@ interface WeatherContextType {
   setCurrentTemp: (temp: number) => void;
   location: string;
   setLocation: (location: string) => void;
-  userId: number;
-  setUserId: (userId: number) => void;
+  userId: number | undefined;
 }
 
 const WeatherContext = createContext<WeatherContextType | undefined>(undefined);
@@ -22,12 +21,6 @@ const WeatherContext = createContext<WeatherContextType | undefined>(undefined);
 interface WeatherProviderProps {
   children: ReactNode;
 }
-
-// 랜덤한 userId 생성 함수
-const generateUserId = (): number => {
-  // 6자리 정수 (100000 ~ 999999)
-  return Math.floor(100000 + Math.random() * 900000);
-};
 
 export const WeatherProvider: React.FC<WeatherProviderProps> = ({
   children,
@@ -39,25 +32,29 @@ export const WeatherProvider: React.FC<WeatherProviderProps> = ({
   // localStorage에서 userId 불러오기 또는 생성하기
   useEffect(() => {
     if (typeof window !== "undefined") {
-      let storedUserId = Number(localStorage.getItem("userId"));
+      const storedUserId = Number(localStorage.getItem("userId"));
 
       if (!storedUserId) {
         // userId가 없으면 랜덤한 값 생성
-        storedUserId = generateUserId();
+        const location = "춘천";
+
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/users`, {
+          method: "POST",
+          body: JSON.stringify({ location }),
+        })
+          .then((res) => res.json() as Promise<{ user_id: number }>)
+          .then((data) => {
+            setUserId(data.user_id);
+          })
+          .catch((err) => {
+            console.error(err);
+          });
         localStorage.setItem("userId", storedUserId?.toString());
       }
 
       setUserId(storedUserId);
     }
   }, []);
-
-  // userId가 변경될 때 localStorage에 저장
-  const handleSetUserId = (newUserId: number) => {
-    setUserId(newUserId);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("userId", newUserId.toString());
-    }
-  };
 
   return (
     <WeatherContext.Provider
@@ -66,8 +63,7 @@ export const WeatherProvider: React.FC<WeatherProviderProps> = ({
         setCurrentTemp,
         location,
         setLocation,
-        userId: userId || 0,
-        setUserId: handleSetUserId,
+        userId,
       }}
     >
       {children}

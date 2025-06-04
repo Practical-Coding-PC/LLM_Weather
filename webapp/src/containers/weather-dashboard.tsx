@@ -10,6 +10,7 @@ import {
   type UltraShortTermWeatherResponse,
   type WeatherApiItem,
 } from "../lib/weather-api";
+import { urlBase64ToUint8Array } from "@/lib/subscribe";
 
 // 시간대별 날씨 데이터 타입
 interface TimeSlot {
@@ -68,7 +69,11 @@ const processWeatherData = (apiData: WeatherApiItem[]): TimeSlot[] => {
 };
 
 export function WeatherDashboard() {
-  const { setCurrentTemp, setLocation: setWeatherLocation } = useWeather();
+  const {
+    userId,
+    setCurrentTemp,
+    setLocation: setWeatherLocation,
+  } = useWeather();
   const [location, setLocation] = useState<{
     latitude: number;
     longitude: number;
@@ -100,10 +105,7 @@ export function WeatherDashboard() {
 
   // 위치 정보 가져오기 및 날씨 데이터 가져오기 통합 Effect
   useEffect(() => {
-    const fetchAndSetWeatherData = async (
-      lat: number,
-      lon: number
-    ) => {
+    const fetchAndSetWeatherData = async (lat: number, lon: number) => {
       setIsLoadingWeather(true);
       setWeatherError(null);
       try {
@@ -118,16 +120,13 @@ export function WeatherDashboard() {
         if (data.requestCode !== "200") {
           // 실제 API가 오류 메시지를 어떻게 반환하는지에 따라 에러 처리를 조정해야 합니다.
           // 예를 들어 data.message 또는 다른 필드에 오류 내용이 있을 수 있습니다.
-          throw new Error(
-            `API error with code: ${data.requestCode}`
-          );
+          throw new Error(`API error with code: ${data.requestCode}`);
         }
 
         const timeSlots = processWeatherData(data.items);
         const currentTemp =
           timeSlots.length > 0 ? `${timeSlots[0].temp}°C` : "N/A";
-        const currentTempNumber =
-          timeSlots.length > 0 ? timeSlots[0].temp : 20;
+        const currentTempNumber = timeSlots.length > 0 ? timeSlots[0].temp : 20;
 
         setCurrentTemp(currentTempNumber);
         setWeatherLocation("현재 위치"); // 위치 이름은 필요시 API 응답이나 다른 방법으로 설정
@@ -185,7 +184,7 @@ export function WeatherDashboard() {
         maximumAge: 300000, // 5분간 캐시된 위치 사용
       }
     );
-  }, []);
+  }, [setCurrentTemp, setWeatherLocation]);
 
   const backgroundGradient = weatherData
     ? getTemperatureGradient(weatherData.timeSlots[0]?.temp || 20)
@@ -207,7 +206,49 @@ export function WeatherDashboard() {
       <div className={showStickyChat ? "mt-20" : ""}>
         {weatherData && (
           <>
-            <WeatherHeader currentTemp={weatherData.currentTemp} />
+            <WeatherHeader
+              currentTemp={weatherData.currentTemp}
+              onNotificationClick={async () => {
+                const registration = await navigator.serviceWorker.ready;
+                try {
+                  const sub = await registration.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: urlBase64ToUint8Array(
+                      process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!
+                    ),
+                  });
+                  const subscription = sub.toJSON();
+                  const res = await fetch(
+                    `http://localhost:8000/notifications`,
+                    {
+                      method: "POST",
+                      body: JSON.stringify({
+                        user_id: userId,
+                        endpoint: subscription.endpoint,
+                        expirationTime: subscription.expirationTime || 0,
+                        p256dh: subscription.keys?.p256dh || "",
+                        auth: subscription.keys?.auth || "",
+                      }),
+                      headers: {
+                        "Content-Type": "application/json",
+                      },
+                    }
+                  );
+                  if (!res.ok) {
+                    throw new Error();
+                  }
+                  alert("Subscribed to push notifications");
+                } catch (e) {
+                  console.error(e);
+                  alert("Failed to subscribe to push notifications");
+                  registration.pushManager.getSubscription().then((sub) => {
+                    if (sub) {
+                      sub.unsubscribe();
+                    }
+                  });
+                }
+              }}
+            />
             <HourlyForecast timeSlots={weatherData.timeSlots} />
           </>
         )}
@@ -228,22 +269,6 @@ export function WeatherDashboard() {
               <div className="text-red-700 font-medium mb-2">
                 날씨 데이터를 불러올 수 없습니다
               </div>
-              <div className="text-red-600 text-sm mb-3">{weatherError}</div>
-              <button
-                onClick={() => {
-                  if (location) {
-                    // fetchAndSetWeatherData를 직접 호출하도록 변경
-                    fetchAndSetWeatherData(
-                      location.latitude,
-                      location.longitude
-                    );
-                  }
-                }}
-                className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-                disabled={isLoadingWeather}
-              >
-                {isLoadingWeather ? "재시도 중..." : "다시 시도"}
-              </button>
             </div>
           </div>
         )}

@@ -1,10 +1,25 @@
+import { useEffect, useState } from "react";
 import { ChatAssistant } from "./chat-assistant";
 
 type WeatherHeaderProps = {
   currentTemp: string;
+  onNotificationClick: () => void;
 };
 
-export function WeatherHeader({ currentTemp }: WeatherHeaderProps) {
+export function WeatherHeader({
+  currentTemp,
+  onNotificationClick,
+}: WeatherHeaderProps) {
+  const [isSubscribed, setIsSubscribed] = useState(true);
+
+  useEffect(() => {
+    navigator.serviceWorker.ready.then((registration) => {
+      registration.pushManager.getSubscription().then((subscription) => {
+        setIsSubscribed(!!subscription);
+      });
+    });
+  }, []);
+
   return (
     <div className="px-6 py-8 flex justify-between items-start">
       <div className="flex justify-between items-start mb-6">
@@ -32,7 +47,48 @@ export function WeatherHeader({ currentTemp }: WeatherHeaderProps) {
           </span>
         </div>
       </div>
-      <div className="flex justify-end items-center">
+      <div className="flex flex-col justify-center items-end gap-2">
+        {!isSubscribed && (
+          <div className="relative">
+            <button
+              className="group relative flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer"
+              onClick={() => {
+                onNotificationClick();
+                setIsSubscribed(true);
+              }}
+            >
+              <div className="relative">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="group-hover:animate-pulse"
+                >
+                  <path d="M10.268 21a2 2 0 0 0 3.464 0" />
+                  <path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326" />
+                </svg>
+                {/* Notification dot */}
+                <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full animate-ping"></div>
+                <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></div>
+              </div>
+              <span className="text-sm font-medium hidden sm:inline">
+                알림 받기
+              </span>
+            </button>
+
+            {/* Tooltip */}
+            <div className="absolute bottom-full right-0 mb-2 px-3 py-1 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap pointer-events-none">
+              날씨 알림을 받으려면 클릭하세요
+              <div className="absolute top-full right-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+            </div>
+          </div>
+        )}
         <ChatAssistant />
       </div>
     </div>

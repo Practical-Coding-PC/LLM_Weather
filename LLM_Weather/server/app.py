@@ -11,6 +11,8 @@ import json
 import warnings
 
 from repositories.news_repository import NewsRepository
+from repositories.user_repository import UserRepository
+from repositories.notification_repository import NotificationRepository
 
 from chatbot.chatbot_service import ChatbotService
 from forecast.forecast_service import ForecastService
@@ -31,6 +33,16 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     reply: str
     chat_id: int
+
+class CreateUserRequest(BaseModel):
+    location: str
+
+class CreateNotificationRequest(BaseModel):
+    user_id: int
+    endpoint: str
+    expirationTime: int = None
+    p256dh: str
+    auth: str
 
 
 #====== FastAPI 요청 파트 ======
@@ -170,6 +182,50 @@ async def get_supported_locations():
         dict: 지원되는 지역 목록과 세부 정보를 기록한 dictionary.
     """
     return chatbot_service.get_supported_locations()
+
+@app.post("/users")
+async def create_user(request: CreateUserRequest):
+    """
+    사용자를 생성한다.
+    """
+    try:
+        # 사용자 생성
+        user_id = UserRepository.create(request.location)
+        
+        result = {
+            "user_id": user_id,
+            "location": request.location
+        }
+        
+        return result
+        
+    except Exception as e:
+        print(f"사용자 생성 오류: {e}")
+        raise HTTPException(status_code=500, detail="사용자 생성 중 오류가 발생했습니다.")
+
+@app.post("/notifications")
+async def create_notification(request: CreateNotificationRequest):
+    """
+    사용자의 알림 구독을 설정한다.
+    """
+    try:
+        notification_id = NotificationRepository.create(
+            user_id=request.user_id,
+            endpoint=request.endpoint,
+            expiration_time=request.expirationTime,
+            p256dh_key=request.p256dh,
+            auth_key=request.auth
+        )
+        
+        result = {
+            "notification_id": notification_id,
+        }
+        
+        return result
+        
+    except Exception as e:
+        print(f"알림 구독 생성 오류: {e}")
+        raise HTTPException(status_code=500, detail="알림 구독 생성 중 오류가 발생했습니다.")
 
 @app.get("/health")
 async def health_check():
