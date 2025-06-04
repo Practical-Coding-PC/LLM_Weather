@@ -87,12 +87,6 @@ class ForecastService:
         단기 예보 데이터를 반환한다.
         """
         return fetch_short_term_forecast(latitude, longitude)
-
-    def get_forecast_weather(self, latitude: float, longitude: float) -> Dict[str, Any]:
-        """
-        예보 예보 데이터를 반환한다.
-        """
-        return fetch_forecast_weather(latitude, longitude)
     
     def find_coords_by_keyword(self, msg: str) -> Optional[Dict[str, Any]]:
         """

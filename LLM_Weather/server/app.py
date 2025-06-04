@@ -5,17 +5,19 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from dotenv import load_dotenv
+from apscheduler.schedulers.background import BackgroundScheduler
 
 import os
 import json
 import warnings
 
-from repositories.news_repository import NewsRepository
 from repositories.user_repository import UserRepository
 from repositories.notification_repository import NotificationRepository
+from repositories.user_repository import UserRepository
 
 from chatbot.chatbot_service import ChatbotService
 from forecast.forecast_service import ForecastService
+from forecast.push_weather_notification import push_weather_notification
 
 # urllib3 경고 무시 (macOS LibreSSL 호환성 문제)
 warnings.filterwarnings("ignore", message="urllib3 v2 only supports OpenSSL 1.1.1+")
@@ -47,9 +49,21 @@ class CreateNotificationRequest(BaseModel):
 
 #====== FastAPI 요청 파트 ======
 
+scheduler = BackgroundScheduler()
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    load_dotenv() # FastAPI를 구동할 때, 환경 변수를 로드한다.
+    # FastAPI를 구동할 때, 환경 변수를 로드한다.
+    load_dotenv()
+
+    # 날씨 알림 스케줄러 설정 (30분마다)
+    scheduler.add_job(
+        push_weather_notification,
+        'interval',
+        minutes=30,
+        id='weather_notification_job'
+    )
+    
     yield
 
 app = FastAPI(

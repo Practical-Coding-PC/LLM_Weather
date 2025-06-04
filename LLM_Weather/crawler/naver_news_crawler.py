@@ -1,72 +1,18 @@
 import asyncio
 import time
-from datetime import datetime, UTC, timedelta
+from datetime import datetime, timedelta
 import aiohttp
 import trafilatura
 from bs4 import BeautifulSoup
-import os
 import json
 import litellm
+import pytz
 
 from dotenv import load_dotenv
 from typing import List, Tuple, Optional
 
+from kakaoapi.get_city_from_coordinates import get_city_from_coordinates
 from repositories.news_repository import NewsRepository
-
-async def get_city_from_coordinates(latitude: float, longitude: float) -> str:
-    """
-    카카오맵 REST API를 사용하여 좌표로부터 행정구역(시) 이름을 가져옵니다.
-
-    Args:
-        latitude (float): 위도 값.
-        longitude (float): 경도 값.
-
-    Returns:
-        str: 변환된 행정구역(시)의 이름입니다. API 호출에 실패하거나 해당 좌표의
-             행정구역 정보를 찾을 수 없는 경우, 빈 문자열("")이나 None을 반환할 수 있습니다.
-    """
-
-    load_dotenv()
-
-    url = "https://dapi.kakao.com/v2/local/geo/coord2regioncode"
-    params = {
-        "x": str(longitude),
-        "y": str(latitude)
-    }
-
-    headers = {
-        "Authorization": f"KakaoAK {os.environ.get('KAKAO_REST_API_KEY')}"
-    }
-
-    async with aiohttp.ClientSession() as session:
-        async with session.get(url, params=params, headers=headers) as response:
-
-            print(f"KakaoMap Response Status Code: {response.status}")
-            
-            json_response = await response.json()
-
-            print(json_response.get('documents')[0])
-
-            document = json_response.get('documents')[0]
-
-            location = document.get('region_2depth_name')
-
-            # 'region_2depth_name'(구 단위)이 비어있을 경우, 'region_1depth_name'(시도 단위)로 대체한다. ex) 세종특별자치시
-            if location == '':
-                location = document.get('region_1depth_name')
-            
-
-            # 시로 끝나는 경우 시를 제거한다.
-            if location.endswith("시"):
-                location = location.removesuffix("시")
-            # 군으로 끝나는 경우 군을 제거한다.
-            elif location.endswith("군"):
-                location = location.removesuffix("군")
-            # 구로 끝나는 경우 구를 제거한다.
-            elif location.endswith("구"):
-                location = location.removesuffix("구")
-            
-            return location
 
 
 async def fetch_and_extract_article(session: aiohttp.ClientSession, link: str) -> Optional[str]:
@@ -318,9 +264,9 @@ async def export_news_summaries_json(latitude: float, longitude: float) -> dict:
     end_time_epoch = time.time()
     print(f"좌표 -> 행정구역(시) 변환 시간: {end_time_epoch - start_time_epoch}")
 
-    # UTC 변환 및 포맷팅
-    end_time_utc = datetime.fromtimestamp(end_time_epoch, UTC).strftime("%Y-%m-%d %H:%M:%S")
-    one_hour_ago = datetime.fromtimestamp(end_time_epoch, UTC) - timedelta(hours=1)
+    # UTC 변환 및 포맷팅 
+    end_time_utc = datetime.fromtimestamp(end_time_epoch, pytz.UTC).strftime("%Y-%m-%d %H:%M:%S")
+    one_hour_ago = datetime.fromtimestamp(end_time_epoch, pytz.UTC) - timedelta(hours=1)
     start_time_utc = one_hour_ago.strftime("%Y-%m-%d %H:%M:%S")
 
     news_list = NewsRepository.get_by_location_and_time_range(location, start_time_utc, end_time_utc)
