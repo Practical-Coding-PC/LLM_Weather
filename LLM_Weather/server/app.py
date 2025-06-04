@@ -3,7 +3,6 @@ from crawler.naver_news_crawler import export_news_summaries_json
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from dotenv import load_dotenv
 
@@ -71,19 +70,6 @@ async def get_weather_news_summaries(latitude: float, longitude: float):
     """
     return json.loads(await export_news_summaries_json(latitude, longitude))
 
-@app.get("/weather/news/test")
-async def get_weather_news_summaries_test():
-    """
-    테스트용으로 특정 지역(춘천)의 뉴스 요약 정보를 반환한다.
-
-    Args:
-        없음.
-
-    Returns:
-        dict: 춘천 지역과 관련된 뉴스 요약 정보를 기록한 dictionary.
-    """
-    return NewsRepository.get_by_location("춘천")
-
 @app.get("/weather/ultra_short_term")
 async def get_ultra_short_term_weather_forecast(latitude: float, longitude: float):
     """
@@ -111,25 +97,6 @@ async def get_short_term_weather_forecast(latitude: float, longitude: float):
         dict: 단기 날씨 예보 정보를 기록한 dictionary.
     """
     return await forecast_service.get_short_term_forecast(latitude, longitude)
-
-@app.get("/", response_class=HTMLResponse)
-async def read_root():
-    """
-    챗봇 메인 페이지를 반환한다.
-    만약, chatbot_ui.html 파일을 찾지 못하면 "chatbot_ui.html 파일을 찾을 수 없습니다."를 화면에 html로 띄운다.
-
-    Args:
-        없음.
-
-    Returns:
-        HTMLResponse: 챗봇 UI 페이지의 HTML 콘텐츠.
-    """
-    try:
-        with open(os.path.join(os.path.dirname(__file__), 'chatbot_ui.html'), 'r', encoding='utf-8') as f:
-            return HTMLResponse(content=f.read())
-    except FileNotFoundError:
-        return HTMLResponse(content="<h1>chatbot_ui.html 파일을 찾을 수 없습니다.</h1>")
-
 
 @app.post("/api/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest) -> ChatResponse:
