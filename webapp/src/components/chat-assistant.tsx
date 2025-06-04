@@ -1,43 +1,72 @@
 import React from "react";
 import Link from "next/link";
 
-type ChatAssistantProps = {
-  onClick: () => void;
-};
+interface ChatAssistantProps {
+  isSticky?: boolean;
+}
 
-export function ChatAssistant({ onClick }: ChatAssistantProps) {
+export function ChatAssistant({ isSticky = false }: ChatAssistantProps) {
   return (
-    <div className="flex justify-end p-6">
-      <Link href="/chat">
-        <div
-          className="w-14 h-14 bg-white/40 backdrop-blur-sm border border-white/30 rounded-full flex items-center justify-center cursor-pointer hover:bg-white/60 transition-all duration-200 shadow-lg hover:shadow-xl"
-          onClick={onClick}
-        >
+    <Link href="/chat">
+      <div
+        className={`${
+          isSticky
+            ? "h-14 bg-white/20 backdrop-blur-md rounded-xl"
+            : "h-16 bg-white/10 backdrop-blur-md rounded-2xl"
+        } flex items-center justify-between px-4 cursor-pointer hover:bg-white/30 transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-105 transform border border-gray-200`}
+      >
+        <div className="flex items-center space-x-3">
+          <div
+            className={`${
+              isSticky ? "w-8 h-8" : "w-10 h-10"
+            } bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm`}
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width={isSticky ? "20" : "24"}
+              height={isSticky ? "20" : "24"}
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M12 8V4H8" />
+              <rect width="16" height="12" x="4" y="8" rx="2" />
+              <path d="M2 14h2" />
+              <path d="M20 14h2" />
+              <path d="M15 13v2" />
+              <path d="M9 13v2" />
+            </svg>
+          </div>
+          <div className="text-slate-700">
+            <div className={`${isSticky ? "text-xs" : "text-sm"} font-medium`}>
+              AI 어시스턴트
+            </div>
+            <div
+              className={`${isSticky ? "text-xs" : "text-xs"} text-slate-600`}
+            >
+              무엇이든지 물어보세요
+            </div>
+          </div>
+        </div>
+        <div className="text-slate-600">
           <svg
-            width="26"
-            height="26"
+            xmlns="http://www.w3.org/2000/svg"
+            width={isSticky ? "18" : "20"}
+            height={isSticky ? "18" : "20"}
             viewBox="0 0 24 24"
             fill="none"
-            xmlns="http://www.w3.org/2000/svg"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
           >
-            <circle
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="#374151"
-              strokeWidth="2"
-              fill="none"
-            />
-            <path
-              d="M8 14C8 14 10 16 12 16C14 16 16 14 16 14"
-              stroke="#374151"
-              strokeWidth="2"
-            />
-            <circle cx="8" cy="10" r="1.5" fill="#374151" />
-            <circle cx="16" cy="10" r="1.5" fill="#374151" />
+            <path d="m9 18 6-6-6-6" />
           </svg>
         </div>
-      </Link>
-    </div>
+      </div>
+    </Link>
   );
 }

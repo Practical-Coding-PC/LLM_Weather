@@ -1,5 +1,11 @@
-import React from "react";
 import { ExternalLink } from "lucide-react";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "./ui/sheet";
 
 type WeatherNewsProps = {
   newsTitle: string;
@@ -13,23 +19,40 @@ export function WeatherNews({
   articleUrl,
 }: WeatherNewsProps) {
   return (
-    <div className="bg-white/50 backdrop-blur border border-gray-200 rounded-lg p-4 flex-grow mb-4">
-      <h3 className="font-semibold text-gray-800 mb-2">{newsTitle}</h3>
-      <p className="text-sm text-gray-700 mb-3 line-clamp-2">{summary}</p>
-
-      {articleUrl && (
-        <div className="text-right">
-          <a
-            href={articleUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center text-xs text-blue-700 hover:text-blue-900 hover:underline font-medium"
-          >
-            <span className="mr-1">Read more</span>
-            <ExternalLink size={12} />
-          </a>
+    <Sheet>
+      <SheetTrigger asChild>
+        <div className="bg-white/40 backdrop-blur border border-gray-200 rounded-lg p-4 flex-grow mb-4 cursor-pointer hover:bg-white/70 transition-colors">
+          <h3 className="font-semibold text-gray-800">{newsTitle}</h3>
         </div>
-      )}
-    </div>
+      </SheetTrigger>
+
+      <SheetContent side="bottom" className="py-4">
+        <SheetHeader>
+          <SheetTitle>{newsTitle}</SheetTitle>
+        </SheetHeader>
+
+        <div className="px-4 space-y-4">
+          <div>
+            <h4 className="font-medium text-gray-800 mb-2">요약</h4>
+            <p className="text-sm text-gray-700 leading-relaxed">{summary}</p>
+          </div>
+
+          {articleUrl && (
+            <div className="pt-4 border-t border-gray-200 text-right">
+              <a
+                href={articleUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <span className="mr-2">원본 기사 읽기</span>
+                <ExternalLink size={16} />
+              </a>
+            </div>
+          )}
+        </div>
+      </SheetContent>
+    </Sheet>
   );
 }
