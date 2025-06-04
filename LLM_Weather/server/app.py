@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
 from crawler.naver_news_crawler import export_news_summaries_json
+from forecast.check_weather import check_weather
 from forecast.ultra_short_term_forecast import fetch_ultra_short_term_forecast
 from forecast.short_term_forecast import fetch_short_term_forecast
 from fastapi import FastAPI
@@ -9,6 +10,8 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from dotenv import load_dotenv
 from datetime import datetime
+from apscheduler.schedulers.background import BackgroundScheduler
+from repositories.user_repository import UserRepository
 
 import os
 import sys
@@ -402,6 +405,7 @@ app = FastAPI(
     version="2.1.0",
     lifespan=lifespan
 )
+scheduler = BackgroundScheduler()
 
 # Add CORS middleware
 app.add_middleware(
@@ -466,6 +470,28 @@ async def get_short_term_weather_forecast(latitude: float, longitude: float):
         dict: 단기 날씨 예보 정보를 기록한 dictionary.
     """
     return await fetch_short_term_forecast(latitude, longitude)
+
+@app.put("/weather/{user_id}/notification")
+async def start_notfication(user_id:str, latitude: float, longitude: float):
+    user = UserRepository.get_by_id(user_id)
+    if not user:
+        return {"requestCode": 400, "message": f"존재하지 않는 사용자입니다."}
+    
+    # 기존 job 제거
+    job_id = f"weather_{user_id}"
+    if scheduler.get_job(job_id):
+        scheduler.remove_job(job_id)
+
+    scheduler.add_job(
+        check_weather,
+        'interval',
+        minutes = 30,
+        args=[latitude, longitude, user_id],
+        id = job_id,
+        replace_existing=True
+    )
+
+    return {"requestCode": 200, "message": f"{user_id}의 날씨 알림이 설정되었습니다."}
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root():
