@@ -45,9 +45,9 @@ export async function getUltraShortTermWeather(
   );
 
   if (!response.ok) {
-    const errorData = (await response
-      .json()
-      .catch(() => ({ detail: "Unknown error while fetching weather data" }))) as ErrorResponse;
+    const errorData = (await response.json().catch(() => ({
+      detail: "Unknown error while fetching weather data",
+    }))) as ErrorResponse;
     throw new Error(
       errorData.detail || "Failed to fetch ultra short term weather data"
     );
@@ -67,7 +67,6 @@ export interface WeatherNewsItem {
   // source: string;
   //
   // 현재 webapp/src/components/weather-news-item.tsx 의 NewsItem props와 유사하게 정의합니다.
-  id: string; // 뉴스를 식별할 수 있는 고유 ID
   title: string;
   url: string;
   source: string;
@@ -75,31 +74,18 @@ export interface WeatherNewsItem {
   summary?: string; // 요약 정보는 선택적일 수 있음
 }
 
-export interface WeatherNewsResponse {
-  // FastAPI Pydantic 모델을 기반으로 실제 응답 구조를 정의해야 합니다.
-  // 예시:
-  // request_time: string;
-  // location: string;
-  // articles: WeatherNewsItem[];
-  // total_results: number;
-  //
-  // 여기서는 webapp/src/hooks/useWeatherNews.ts 에서 기대하는 데이터 구조와 유사하게 정의합니다.
-  news: WeatherNewsItem[];
-  // FastAPI 응답에 따라 다른 필드들이 있을 수 있습니다.
-}
-
 export async function getWeatherNews(
   latitude: number,
   longitude: number
-): Promise<WeatherNewsResponse> {
+): Promise<WeatherNewsItem[]> {
   const response = await fetch(
     `${API_BASE_URL}/weather/news?latitude=${latitude}&longitude=${longitude}`
   );
 
   if (!response.ok) {
-    const errorData = (await response
-      .json()
-      .catch(() => ({ detail: "Unknown error while fetching weather news" }))) as ErrorResponse;
+    const errorData = (await response.json().catch(() => ({
+      detail: "Unknown error while fetching weather news",
+    }))) as ErrorResponse;
     throw new Error(errorData.detail || "Failed to fetch weather news");
   }
 

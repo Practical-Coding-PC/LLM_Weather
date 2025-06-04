@@ -2,11 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { WeatherNews } from "../components/weather-news";
-import {
-  getWeatherNews,
-  type WeatherNewsItem,
-  type WeatherNewsResponse,
-} from "../lib/weather-api";
+import { getWeatherNews, type WeatherNewsItem } from "../lib/weather-api";
 
 interface WeatherNewsContainerProps {
   latitude: number;
@@ -27,15 +23,13 @@ export function WeatherNewsContainer({
       setLoading(true);
       setError(null);
       try {
-        const response: WeatherNewsResponse = await getWeatherNews(
-          latitude,
-          longitude
-        );
-        // The API returns an object with a 'news' property
-        setNewsArticles(response.news || []);
+        const response = await getWeatherNews(latitude, longitude);
+        setNewsArticles(response);
       } catch (err) {
         const errorMessage =
-          err instanceof Error ? err.message : "뉴스를 불러오는데 실패했습니다.";
+          err instanceof Error
+            ? err.message
+            : "뉴스를 불러오는데 실패했습니다.";
         setError(errorMessage);
         console.error("날씨 뉴스 가져오기 에러:", err);
         setNewsArticles([]); // Clear articles on error
@@ -77,11 +71,11 @@ export function WeatherNewsContainer({
           <div className="text-gray-700 font-medium">뉴스 기사가 없습니다.</div>
         </div>
       ) : (
-        newsArticles.map((article, index) => (
+        newsArticles.map((article, idx) => (
           // Adapt props for WeatherNews component
           // It expects newsTitle, summary, articleUrl
           <WeatherNews
-            key={article.id} // Use unique id from news item
+            key={idx} // Use unique id from news item
             newsTitle={article.title}
             summary={article.summary || ""} // Provide default for optional summary
             articleUrl={article.url} // Use url field
