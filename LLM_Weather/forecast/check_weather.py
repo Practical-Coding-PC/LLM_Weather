@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime
 import sys
 import os
 import math
@@ -7,33 +7,21 @@ import math
 # 상위 디렉토리의 모듈들을 import하기 위해 경로 추가
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from forecast.ultra_short_term_forecast import fetch_ultra_short_term_forecast
-
-
-# 샘플 데이터
-now = datetime.now()
-base_date = datetime.now().strftime("%Y%m%d")
-
-def make_fcst_time(hour_offset):
-    return (now + timedelta(hours=hour_offset)).strftime("%H%M")
-
-items = [
-    # 비 (PTY: 1=비)
-    {"fcstDate": base_date, "fcstTime": make_fcst_time(1), "category": "PTY", "fcstValue": "1"},
-    # 눈 (PTY: 3=눈)
-    {"fcstDate": base_date, "fcstTime": make_fcst_time(2), "category": "PTY", "fcstValue": "3"},
-    # 낙뢰 (LGT: 1~3)
-    {"fcstDate": base_date, "fcstTime": make_fcst_time(3), "category": "LGT", "fcstValue": "1"},
-    # 강풍 (WSD: 6.0 이상)
-    {"fcstDate": base_date, "fcstTime": make_fcst_time(4), "category": "WSD", "fcstValue": "6.3"},
-
-    # 기타 날씨 항목 (온도/하늘상태 등)
-    {"fcstDate": base_date, "fcstTime": make_fcst_time(1), "category": "T1H", "fcstValue": "22"},
-    {"fcstDate": base_date, "fcstTime": make_fcst_time(2), "category": "REH", "fcstValue": "60"},
-    {"fcstDate": base_date, "fcstTime": make_fcst_time(3), "category": "SKY", "fcstValue": "4"},
-]
+from forecast.utils.ultra_short_term_forecast import fetch_ultra_short_term_forecast
 
 def summarize_weather(alerts: dict) -> str:
+    """
+    주어진 기상 예보 정보를 바탕으로,
+    예상 시점에 따라 자연스러운 메시지를 생성하여 한 줄로 요약합니다.
+
+    Args:
+        alerts (dict): 예보 항목별(강수, 낙뢰, 강풍)로 발생 예상 시간(hour)이 담긴 딕셔너리.
+                       예: {"rain": 1, "lightning": 3, "strong_wind": None}
+
+    Returns:
+        str: 사용자에게 보여줄 자연어 요약 메시지.
+             예: "곧 비나 눈이 올 수 있어요 ☔ / 조만간 낙뢰가 있을 수 있어요 ⚡ — 외출 시 주의하세요!"
+    """
     message_summary = []
 
     def phrase(hour, description, emoji):
@@ -58,59 +46,62 @@ def summarize_weather(alerts: dict) -> str:
     else:
         return "☀️ 현재 6시간 내에 뚜렷한 기상 특이사항은 없습니다."
 
-async def check_weather(latitude: float, longitude: float):
+
+async def check_weather(latitude: float, longitude: float) -> str:
     """
-    지정한 위도 및 경도 좌표에 대해 향후 6시간의 초단기 예보 데이터를 가져와서,
-    강수, 낙뢰, 강풍 등의 주요 기상 요소를 분석하여 알림 정보를 반환한다.
+    주어진 위도와 경도를 기준으로 초단기 예보 데이터를 분석하여,
+    향후 6시간 이내에 비, 눈, 낙뢰, 강풍 등 주요 기상 요소가 발생할 가능성을 판단하고,
+    사용자에게 전달할 자연어 요약 메시지를 반환합니다.
 
     Args:
         latitude (float): 위도 좌표.
         longitude (float): 경도 좌표.
 
     Returns:
-        dict: 알림 대상이 되는 기상 조건 및 메시지가 포함된 사전.
-              예: {'rain': True, 'lightning': False, 'message': '우산을 챙기세요! 비 예보 있음'}
+        str: 요약된 자연어 메시지. 예: "곧 비나 눈이 올 수 있어요 ☔ / 조만간 낙뢰가 있을 수 있어요 ⚡ — 외출 시 주의하세요!"
     """
-    # 강수 메시지를 작성하기 위한 dictionary. value로 True 값을 가지면, 해당 예보가 예정됨을 나타낸다.
+    # 기상 상태별 최초 예보 시각(시간 단위)을 담기 위한 딕셔너리
     alerts = {
-        "rain": None,
-        "lightning": None,
-        "strong_wind": None,
+        "rain": None,         # 비나 눈 예보 시점
+        "lightning": None,    # 낙뢰 예보 시점
+        "strong_wind": None,  # 풍속 6.0m/s 이상 예보 시점
         "message": ""
     }
 
-    # 현재 시간
     now = datetime.now()
 
-    # result = await fetch_ultra_short_term_forecast(latitude, longitude)
-    # items = result.get('items', [])
-    
-    for item in items:
-        category = item['category']
-        fcstValue = item['fcstValue']
+    # 예보 데이터 호출
+    result = await fetch_ultra_short_term_forecast(latitude, longitude)
+    items = result.get('items', [])
 
+    for item in items:
+        category = item['category'] # category
+        fcstValue = item['fcstValue'] # fcstValue
+
+        # 예보 시각 계산
         fcst_dt = datetime.strptime(item['fcstDate'] + item['fcstTime'], "%Y%m%d%H%M")
+        # (예보 시각 - 현재 시각) 값을 올림 처리
         hours = math.ceil((fcst_dt - now).total_seconds() / 3600)
 
         if hours < 0 or hours > 6:
-            continue # 과거나 6시간 이후는 무시
-        
-        # 강수 현황 판단
+            continue  # 6시간 이내만 분석
+
+        # 강수(PTY): 비/눈/소나기 예보
         if category == "PTY" and fcstValue != "0" and alerts['rain'] is None:
             alerts['rain'] = hours
-        # 낙뢰 현황 판단
+
+        # 낙뢰(LGT)
         elif category == "LGT" and fcstValue != "0" and alerts['lightning'] is None:
             alerts['lightning'] = hours
+
+        # 풍속(WSD): 6.0m/s 이상이면 강풍
         elif category == "WSD":
             wind_speed = float(fcstValue)
-
             if wind_speed >= 6.0 and alerts["strong_wind"] is None:
                 alerts['strong_wind'] = hours
 
-        
     # 자연어 메시지 생성
     message_summary = summarize_weather(alerts)
-
     return message_summary
 
 
