@@ -3,11 +3,9 @@ from datetime import datetime
 from bisect import bisect_right
 
 import aiohttp
-import time
-import sys
 import os
 
-from forecast.latlon_to_grid import latlon_to_grid
+from forecast.utils.latlon_to_grid import latlon_to_grid
 
 # 초단기예보 발표 시각 이후 API 제공 시각 리스트.
 API_time_list = [int(f"{hour}45") for hour in range(24)]

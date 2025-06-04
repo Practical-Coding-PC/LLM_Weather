@@ -8,7 +8,6 @@ import os
 import json
 import litellm
 
-from litellm import acompletion
 from dotenv import load_dotenv
 from typing import List, Tuple, Optional
 

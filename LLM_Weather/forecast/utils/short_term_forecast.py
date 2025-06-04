@@ -3,7 +3,7 @@ from datetime import datetime
 from bisect import bisect_right
 
 import aiohttp
-from forecast.latlon_to_grid import latlon_to_grid
+from forecast.utils.latlon_to_grid import latlon_to_grid
 
 import os
 
