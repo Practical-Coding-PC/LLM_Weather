@@ -36,7 +36,7 @@ export function ChatInput({
           onChange={(e) => setMessage(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
-          className="w-full px-4 py-3 bg-white/50 backdrop-blur-sm border border-white/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400/50 focus:border-blue-400/50 resize-none min-h-[50px] max-h-[150px] overflow-auto placeholder-gray-500 text-gray-800 shadow-sm"
+          className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400/50 focus:border-blue-400/50 resize-none min-h-[50px] max-h-[150px] overflow-auto placeholder-gray-500 text-gray-800 shadow-sm"
           rows={2}
           autoFocus
         />

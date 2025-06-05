@@ -222,103 +222,151 @@ export function HourlyForecast({ timeSlots }: HourlyForecastProps) {
 
   return (
     <div className={`px-6 pb-8`}>
-      {/* 온도 범위 표시 */}
+      {/* 온도 범위 및 스크롤 힌트 표시 */}
       <div className="flex justify-between items-center mb-4 pt-4">
         <div className="text-sm font-medium text-gray-700">
           시간별 기온 변화
         </div>
-        <div className="flex items-center gap-2 text-xs text-gray-600">
-          <span className="flex items-center gap-1">
-            <div
-              className="w-2 h-2 rounded-full"
-              style={{ backgroundColor: getTemperatureColor(minTemp) }}
-            />
-            최저 {minTemp}°
-          </span>
-          <span className="text-gray-400">|</span>
-          <span className="flex items-center gap-1">
-            <div
-              className="w-2 h-2 rounded-full"
-              style={{ backgroundColor: getTemperatureColor(maxTemp) }}
-            />
-            최고 {maxTemp}°
-          </span>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 text-xs text-gray-600">
+            <span className="flex items-center gap-1">
+              <div
+                className="w-2 h-2 rounded-full"
+                style={{ backgroundColor: getTemperatureColor(minTemp) }}
+              />
+              최저 {minTemp}°
+            </span>
+            <span className="text-gray-400">|</span>
+            <span className="flex items-center gap-1">
+              <div
+                className="w-2 h-2 rounded-full"
+                style={{ backgroundColor: getTemperatureColor(maxTemp) }}
+              />
+              최고 {maxTemp}°
+            </span>
+          </div>
         </div>
       </div>
 
-      {/* 온도 및 날씨 상태 표시 */}
-      <div className="flex justify-between mb-3 px-2">
-        {timeSlots.map((slot) => (
-          <div key={slot.time} className="text-center flex-1">
-            {/* 날씨 아이콘 */}
-            <div className="text-lg mb-1">
-              {getSkyIcon(slot.sky)}
-              {slot.pty > 0 && (
-                <span className="ml-1">{getPrecipitationIcon(slot.pty)}</span>
-              )}
-            </div>
-
-            {/* 기온 */}
-            <div
-              className="text-sm font-bold mb-1 drop-shadow-sm"
-              style={{ color: getTemperatureColor(slot.temp) }}
-            >
-              {slot.temp}°
-            </div>
-
-            {/* 하늘상태 */}
-            <div className="text-xs text-gray-600 mb-1">
-              {getSkyConditionText(slot.sky)}
-            </div>
-
-            {/* 습도 */}
-            <div className="text-xs text-blue-600">💧{slot.humidity}%</div>
-          </div>
-        ))}
-      </div>
-
-      {/* 차트 */}
-      <div className="h-40 rounded-lg p-2">
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart
-            data={timeSlots}
-            margin={{ top: 10, right: 24, left: 24, bottom: 10 }}
+      {/* 통합 수평 스크롤 컨테이너 */}
+      <div className="relative">
+        <div className="overflow-x-auto overflow-y-visible scrollbar-hide">
+          <div
+            style={{ width: `${timeSlots.length * 80}px`, minWidth: "320px" }}
           >
-            <XAxis
-              dataKey="time"
-              axisLine={false}
-              tickLine={false}
-              tick={{ fontSize: 11, fill: "#6B7280", fontWeight: 500 }}
-              interval={0}
-            />
-            <YAxis hide />
-            <Tooltip content={<CustomTooltip />} />
-            <Line
-              type="monotone"
-              dataKey="temp"
-              stroke={lineColor}
-              strokeWidth={3}
-              dot={{
-                fill: lineColor,
-                strokeWidth: 2,
-                stroke: "#fff",
-                r: 4,
-                filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.1))",
-              }}
-              activeDot={{
-                r: 6,
-                fill: lineColor,
-                stroke: "#fff",
-                strokeWidth: 3,
-                filter: "drop-shadow(0 4px 8px rgba(0,0,0,0.2))",
-              }}
-            />
-          </LineChart>
-        </ResponsiveContainer>
+            {/* 날씨 정보 카드들 */}
+            <div className="flex gap-4 pb-4 px-2">
+              {timeSlots.map((slot, index) => (
+                <div
+                  key={`${slot.time}-${index}`}
+                  className="flex-shrink-0 w-16 text-center"
+                >
+                  {/* 날씨 아이콘 */}
+                  <div className="text-lg mb-2">
+                    {getSkyIcon(slot.sky)}
+                    {slot.pty > 0 && (
+                      <div className="text-sm">
+                        {getPrecipitationIcon(slot.pty)}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 기온 */}
+                  <div
+                    className="text-sm font-bold mb-2 drop-shadow-sm"
+                    style={{ color: getTemperatureColor(slot.temp) }}
+                  >
+                    {slot.temp}°
+                  </div>
+
+                  {/* 하늘상태 */}
+                  <div className="text-xs text-gray-600 mb-1 leading-tight">
+                    {getSkyConditionText(slot.sky)}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* 차트 */}
+            <div className="mt-6 px-2" style={{ height: "144px" }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart
+                  data={timeSlots}
+                  margin={{ top: 10, right: 24, left: 24, bottom: 10 }}
+                >
+                  <XAxis
+                    dataKey="time"
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 11, fill: "#6B7280", fontWeight: 500 }}
+                    interval={0}
+                  />
+                  <YAxis hide />
+                  <Tooltip
+                    content={<CustomTooltip />}
+                    wrapperStyle={{
+                      zIndex: 1000,
+                      outline: "none",
+                      pointerEvents: "none",
+                    }}
+                    allowEscapeViewBox={{ x: true, y: true }}
+                    position={{ y: -100 }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="temp"
+                    stroke={lineColor}
+                    strokeWidth={3}
+                    dot={{
+                      fill: lineColor,
+                      strokeWidth: 2,
+                      stroke: "#fff",
+                      r: 4,
+                      filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.1))",
+                    }}
+                    activeDot={{
+                      r: 6,
+                      fill: lineColor,
+                      stroke: "#fff",
+                      strokeWidth: 3,
+                      filter: "drop-shadow(0 4px 8px rgba(0,0,0,0.2))",
+                    }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* 습도와 바람 정보 - 수평 스크롤 */}
+            <div className="relative mt-4">
+              <div
+                style={{
+                  width: `${timeSlots.length * 80}px`,
+                  minWidth: "320px",
+                }}
+              >
+                {/* 습도 정보 */}
+                <div className="mb-3">
+                  <div className="flex gap-4.5">
+                    {timeSlots.map((slot, index) => (
+                      <div
+                        key={`humidity-${index}`}
+                        className="flex-shrink-0 w-16 text-center"
+                      >
+                        <div className="text-xs text-blue-600 font-medium">
+                          💧{slot.humidity}%
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* 평균 온도 및 날씨 요약 */}
-      <div className="mt-4 space-y-2">
+      <div className="mt-4 space-y-1">
         <div className="text-center">
           <div className="inline-flex items-center gap-2 rounded-full px-4 py-2">
             <div
@@ -336,7 +384,7 @@ export function HourlyForecast({ timeSlots }: HourlyForecastProps) {
 
         {/* 바람 정보 요약 */}
         <div className="flex justify-center">
-          <div className="bg-white/30 backdrop-blur-sm rounded-lg px-3 py-2">
+          <div className="px-3 py-2">
             <div className="flex items-center gap-4 text-xs text-gray-600">
               <span className="flex items-center gap-1">
                 🌪️ 바람:{" "}
@@ -357,6 +405,17 @@ export function HourlyForecast({ timeSlots }: HourlyForecastProps) {
           </div>
         </div>
       </div>
+
+      {/* 스크롤바 숨김을 위한 CSS */}
+      <style jsx>{`
+        .scrollbar-hide {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+        .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+        }
+      `}</style>
     </div>
   );
 }

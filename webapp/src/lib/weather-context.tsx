@@ -31,29 +31,30 @@ export const WeatherProvider: React.FC<WeatherProviderProps> = ({
 
   // localStorage에서 userId 불러오기 또는 생성하기
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const storedUserId = Number(localStorage.getItem("userId"));
+    const storedUserId = Number(localStorage.getItem("userId"));
 
-      if (!storedUserId) {
-        // userId가 없으면 랜덤한 값 생성
-        const location = "춘천";
+    if (Number.isNaN(storedUserId)) {
+      // userId가 없으면 랜덤한 값 생성
+      const location = "춘천";
 
-        fetch(`${process.env.NEXT_PUBLIC_API_URL}/users`, {
-          method: "POST",
-          body: JSON.stringify({ location }),
+      fetch(`http://localhost:8000/users`, {
+        method: "POST",
+        body: JSON.stringify({ location }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+        .then((res) => res.json() as Promise<{ user_id: number }>)
+        .then((data) => {
+          setUserId(data.user_id);
         })
-          .then((res) => res.json() as Promise<{ user_id: number }>)
-          .then((data) => {
-            setUserId(data.user_id);
-          })
-          .catch((err) => {
-            console.error(err);
-          });
-        localStorage.setItem("userId", storedUserId?.toString());
-      }
-
-      setUserId(storedUserId);
+        .catch((err) => {
+          console.error(err);
+        });
+      localStorage.setItem("userId", storedUserId?.toString());
     }
+
+    setUserId(storedUserId);
   }, []);
 
   return (

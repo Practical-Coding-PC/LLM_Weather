@@ -11,11 +11,11 @@ export function ChatAssistant({ isSticky = false }: ChatAssistantProps) {
       <div
         className={`${
           isSticky
-            ? "h-14 bg-white/20 backdrop-blur-md rounded-xl"
-            : "h-16 bg-white/10 backdrop-blur-md rounded-2xl"
-        } flex items-center justify-between px-4 cursor-pointer hover:bg-white/30 transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-105 transform border border-gray-200`}
+            ? "bg-white/20 backdrop-blur-md rounded-xl"
+            : "bg-white/10 backdrop-blur-md rounded-2xl"
+        } flex items-center justify-between px-2 cursor-pointer hover:bg-white/30 transition-all duration-300 shadow hover:shadow-lg hover:scale-101 transform border border-gray-200`}
       >
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center gap-1">
           <div
             className={`${
               isSticky ? "w-8 h-8" : "w-10 h-10"
@@ -42,12 +42,7 @@ export function ChatAssistant({ isSticky = false }: ChatAssistantProps) {
           </div>
           <div className="text-slate-700">
             <div className={`${isSticky ? "text-xs" : "text-sm"} font-medium`}>
-              AI 어시스턴트
-            </div>
-            <div
-              className={`${isSticky ? "text-xs" : "text-xs"} text-slate-600`}
-            >
-              무엇이든지 물어보세요
+              챗봇
             </div>
           </div>
         </div>

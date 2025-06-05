@@ -92,11 +92,11 @@ export const ChatMessage: FC<ChatMessageProps> = ({
       >
         <div>
           <div
-            className={`rounded-lg px-4 py-3 backdrop-blur-sm border ${
+            className={`rounded-2xl px-3 py-2 ${
               sender === "user"
-                ? "bg-blue-500/80 text-white rounded-tr-none border-blue-400/30"
-                : "bg-white/40 text-gray-800 rounded-tl-none border-white/30"
-            } shadow-sm`}
+                ? "bg-blue-500/80 text-white border border-blue-400/30 shadow-xs"
+                : "text-gray-700 bg-white/80 border border-gray-200 shadow-xs"
+            }`}
           >
             {/* CCTV 데이터가 있으면 메시지 숨기기 */}
             {!(cctvData && cctvData.cctvurl) && (
@@ -178,17 +178,6 @@ export const ChatMessage: FC<ChatMessageProps> = ({
                 <p>CCTV 데이터: {JSON.stringify(cctvData)}</p>
               </div>
             )}
-          </div>
-
-          <div
-            className={`text-xs text-gray-600 mt-1 ${
-              sender === "user" ? "text-right" : "text-left"
-            }`}
-          >
-            {timestamp.toLocaleTimeString("ko-KR", {
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
           </div>
         </div>
       </div>

@@ -8,6 +8,8 @@ import {
   type ChatMessage as APIChatMessage,
 } from "../lib/chat-api";
 import { getTemperatureGradient } from "../lib/utils";
+import { ArrowLeftIcon } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 // CCTV 데이터 타입 정의
 type CCTVData = {
@@ -66,9 +68,9 @@ export function Chat() {
   );
   const [messages, setMessages] = useState<Message[]>([]);
   const [chatId, setChatId] = useState<number | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
 
   // 컴포넌트 마운트 시 초기 메시지 설정
   useEffect(() => {
@@ -98,7 +100,6 @@ export function Chat() {
           setMessages(uiMessages);
         } catch (err) {
           console.error("대화 기록 로드 실패:", err);
-          setError("대화 기록을 불러오는데 실패했습니다.");
         } finally {
           setIsLoading(false);
         }
@@ -109,13 +110,11 @@ export function Chat() {
   }, [chatId, userId]);
 
   const handleSendMessage = async (text: string) => {
-    if (!userId) {
-      setError("사용자 ID가 설정되지 않았습니다.");
+    if (Number.isNaN(userId)) {
       return;
     }
 
     setStatus("sending");
-    setError(null);
 
     const newMessage: Message = {
       id: Date.now().toString(),
@@ -130,7 +129,7 @@ export function Chat() {
     try {
       const response = await sendChatMessage({
         message: text,
-        user_id: userId.toString(),
+        user_id: userId?.toString() || "",
         chat_id: chatId || undefined,
       });
 
@@ -168,10 +167,6 @@ export function Chat() {
       setStatus("idle");
     } catch (err) {
       console.error("메시지 전송 실패:", err);
-      setError(
-        err instanceof Error ? err.message : "메시지 전송에 실패했습니다."
-      );
-
       // 에러 발생 시 사용자 메시지는 그대로 두고 에러 메시지 추가
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -199,25 +194,19 @@ export function Chat() {
     >
       {/* 헤더 영역 */}
       <div>
-        <div className="rounded-lg p-8">
-          <h1 className="text-xl font-bold text-gray-800 text-center">
+        <div className="flex justify-between p-2 items-center">
+          <button
+            className="p-2 cursor-pointer"
+            onClick={() => {
+              router.back();
+            }}
+          >
+            <ArrowLeftIcon className="size-6" />
+          </button>
+          <h1 className="text-lg font-semibold text-gray-600">
             날씨 & CCTV 챗봇
           </h1>
-          <p className="text-sm text-gray-600 text-center mt-1">
-            날씨 정보와 CCTV 영상을 확인하세요
-          </p>
-          {/* 개발용: userId 표시 */}
-          {userId && (
-            <p className="text-xs text-gray-500 text-center mt-1">
-              User ID: {userId}
-            </p>
-          )}
-          {/* 에러 메시지 표시 */}
-          {error && (
-            <div className="mt-2 p-2 bg-red-100/80 text-red-800 text-sm rounded border border-red-200/50">
-              {error}
-            </div>
-          )}
+          <div className="w-16" />
         </div>
       </div>
 
@@ -256,10 +245,12 @@ export function Chat() {
           <ChatInput
             onSendMessage={handleSendMessage}
             disabled={
-              status === "sending" || status === "responding" || !userId
+              status === "sending" ||
+              status === "responding" ||
+              Number.isNaN(userId)
             }
             placeholder={
-              !userId
+              Number.isNaN(userId)
                 ? "사용자 ID를 설정 중입니다..."
                 : "날씨나 CCTV에 대해 궁금한 것을 물어보세요..."
             }

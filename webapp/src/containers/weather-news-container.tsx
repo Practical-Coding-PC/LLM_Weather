@@ -77,8 +77,8 @@ export function WeatherNewsContainer({
           <WeatherNews
             key={idx} // Use unique id from news item
             newsTitle={article.title}
-            summary={article.summary || ""} // Provide default for optional summary
-            articleUrl={article.url} // Use url field
+            summary={article.summary} // Provide default for optional summary
+            linkUrl={article.link_url} // Use url field
           />
         ))
       )}

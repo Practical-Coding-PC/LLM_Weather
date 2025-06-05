@@ -7,7 +7,9 @@ import { useWeather } from "../lib/weather-context";
 import { getTemperatureGradient } from "../lib/utils";
 import {
   getUltraShortTermWeather,
+  getShortTermWeather,
   type UltraShortTermWeatherResponse,
+  type ShortTermWeatherResponse,
   type WeatherApiItem,
 } from "../lib/weather-api";
 import { urlBase64ToUint8Array } from "@/lib/subscribe";
@@ -31,41 +33,64 @@ const formatTime = (timeString: string): string => {
   return `${displayHour} ${period}`;
 };
 
-// API 데이터를 TimeSlot 배열로 변환
-const processWeatherData = (apiData: WeatherApiItem[]): TimeSlot[] => {
-  // 시간별로 그룹화
+// 날짜와 시간을 조합하여 정렬 키 생성
+const getDateTimeKey = (fcstDate: string, fcstTime: string): string => {
+  return `${fcstDate}_${fcstTime}`;
+};
+
+// API 데이터를 TimeSlot 배열로 변환 (초단기 + 단기 예보 조합)
+const processWeatherData = (
+  ultraShortTermData: WeatherApiItem[],
+  shortTermData: WeatherApiItem[]
+): TimeSlot[] => {
+  // 모든 데이터를 조합
+  const allData = [...ultraShortTermData, ...shortTermData];
+
+  // 시간별로 그룹화 (날짜_시간을 키로 사용)
   const timeGroups: { [key: string]: { [category: string]: string } } = {};
 
-  apiData.forEach((item) => {
-    const timeKey = item.fcstTime;
+  allData.forEach((item) => {
+    const timeKey = getDateTimeKey(item.fcstDate, item.fcstTime);
     if (!timeGroups[timeKey]) {
       timeGroups[timeKey] = {};
     }
-    timeGroups[timeKey][item.category] = item.fcstValue;
+    // 같은 시간대에 초단기와 단기 데이터가 모두 있는 경우, 초단기 데이터 우선
+    if (!timeGroups[timeKey][item.category]) {
+      timeGroups[timeKey][item.category] = item.fcstValue;
+    }
   });
 
   // TimeSlot 배열 생성
   const timeSlots: TimeSlot[] = Object.entries(timeGroups)
-    .map(([time, data]) => ({
-      time: formatTime(time),
-      temp: parseInt(data.T1H || "0"), // 기온
-      sky: parseInt(data.SKY || "1"), // 하늘상태 (기본값: 맑음)
-      pty: parseInt(data.PTY || "0"), // 강수형태 (기본값: 없음)
-      windU: parseInt(data.UUU || "0"), // 동서바람성분
-      windV: parseInt(data.VVV || "0"), // 남북바람성분
-      humidity: parseInt(data.REH || "50"), // 습도 (기본값: 50%)
-    }))
+    .map(([dateTimeKey, data]) => {
+      const [, fcstTime] = dateTimeKey.split("_");
+      return {
+        time: formatTime(fcstTime),
+        temp: parseInt(data.TMP || data.T1H || "0"), // 단기예보는 TMP, 초단기는 T1H
+        sky: parseInt(data.SKY || "1"), // 하늘상태 (기본값: 맑음)
+        pty: parseInt(data.PTY || "0"), // 강수형태 (기본값: 없음)
+        windU: parseInt(data.UUU || "0"), // 동서바람성분
+        windV: parseInt(data.VVV || "0"), // 남북바람성분
+        humidity: parseInt(data.REH || "50"), // 습도 (기본값: 50%)
+      };
+    })
     .sort((a, b) => {
-      // 시간순 정렬을 위해 원본 시간 문자열 사용
-      const timeA =
-        Object.keys(timeGroups).find((key) => formatTime(key) === a.time) || "";
-      const timeB =
-        Object.keys(timeGroups).find((key) => formatTime(key) === b.time) || "";
-      return timeA.localeCompare(timeB);
+      // 시간순 정렬을 위해 원본 날짜_시간 문자열 사용
+      const timeKeyA =
+        Object.keys(timeGroups).find((key) => {
+          const [, fcstTime] = key.split("_");
+          return formatTime(fcstTime) === a.time;
+        }) || "";
+      const timeKeyB =
+        Object.keys(timeGroups).find((key) => {
+          const [, fcstTime] = key.split("_");
+          return formatTime(fcstTime) === b.time;
+        }) || "";
+      return timeKeyA.localeCompare(timeKeyB);
     });
 
-  // 최대 6시간 데이터만 반환
-  return timeSlots.slice(0, 6);
+  // 최대 12시간 데이터 반환 (초단기 6시간 + 단기 6시간)
+  return timeSlots.slice(0, 12);
 };
 
 export function WeatherDashboard() {
@@ -110,20 +135,30 @@ export function WeatherDashboard() {
       setWeatherError(null);
       try {
         // API 호출 (새로운 함수 사용)
-        const data: UltraShortTermWeatherResponse =
+        const ultraShortTermData: UltraShortTermWeatherResponse =
           await getUltraShortTermWeather(lat, lon);
+        const shortTermData: ShortTermWeatherResponse =
+          await getShortTermWeather(lat, lon);
 
         // API 응답에서 requestCode 확인 (실제 API 스펙에 따라 다를 수 있음)
         // 예를 들어, 성공 코드가 '200'이 아닌 다른 값일 수 있거나,
         // 또는 HTTP 상태 코드로만 성공 여부를 판단할 수도 있습니다.
         // 여기서는 기존 로직과 유사하게 requestCode를 확인합니다.
-        if (data.requestCode !== "200") {
+        if (
+          ultraShortTermData.requestCode !== "200" ||
+          shortTermData.requestCode !== "200"
+        ) {
           // 실제 API가 오류 메시지를 어떻게 반환하는지에 따라 에러 처리를 조정해야 합니다.
           // 예를 들어 data.message 또는 다른 필드에 오류 내용이 있을 수 있습니다.
-          throw new Error(`API error with code: ${data.requestCode}`);
+          throw new Error(
+            `API error with code: ${ultraShortTermData.requestCode} or ${shortTermData.requestCode}`
+          );
         }
 
-        const timeSlots = processWeatherData(data.items);
+        const timeSlots = processWeatherData(
+          ultraShortTermData.items,
+          shortTermData.items
+        );
         const currentTemp =
           timeSlots.length > 0 ? `${timeSlots[0].temp}°C` : "N/A";
         const currentTempNumber = timeSlots.length > 0 ? timeSlots[0].temp : 20;
@@ -273,12 +308,16 @@ export function WeatherDashboard() {
           </div>
         )}
 
+        <div className="h-8" />
+
         {location && !isLoadingWeather && (
           <WeatherNewsContainer
             latitude={location.latitude}
             longitude={location.longitude}
           />
         )}
+
+        <div className="h-24" />
       </div>
     </div>
   );
