@@ -33,6 +33,8 @@ export const WeatherProvider: React.FC<WeatherProviderProps> = ({
   useEffect(() => {
     const storedUserId = Number(localStorage.getItem("userId"));
 
+    console.log("fdfdffdfd")
+    console.log(storedUserId)
     if (Number.isNaN(storedUserId)) {
       // userId가 없으면 랜덤한 값 생성
       const location = "춘천";
@@ -51,6 +53,7 @@ export const WeatherProvider: React.FC<WeatherProviderProps> = ({
         .catch((err) => {
           console.error(err);
         });
+        console.log(storedUserId)
       localStorage.setItem("userId", storedUserId?.toString());
     }
 
