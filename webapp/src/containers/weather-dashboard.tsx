@@ -164,11 +164,14 @@ export function WeatherDashboard() {
           timeSlots.length > 0 ? `${timeSlots[0].temp}°C` : "N/A";
         const currentTempNumber = timeSlots.length > 0 ? timeSlots[0].temp : 20;
 
+        // 단기 데이터에서 location 정보 추출
+        const locationName = ultraShortTermData.location || "현재 위치";
+
         setCurrentTemp(currentTempNumber);
-        setWeatherLocation("현재 위치"); // 위치 이름은 필요시 API 응답이나 다른 방법으로 설정
+        setWeatherLocation(locationName);
 
         setWeatherData({
-          location: "현재 위치", // 이 부분도 API 응답이나 다른 소스에서 가져올 수 있음
+          location: locationName,
           currentTemp,
           timeSlots,
         });
@@ -244,6 +247,7 @@ export function WeatherDashboard() {
           <>
             <WeatherHeader
               currentTemp={weatherData.currentTemp}
+              location={weatherData.location}
               onNotificationClick={async () => {
                 const registration = await navigator.serviceWorker.ready;
                 try {

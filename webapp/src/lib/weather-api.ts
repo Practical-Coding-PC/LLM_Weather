@@ -19,6 +19,7 @@ export interface WeatherApiItem {
 export interface UltraShortTermWeatherResponse {
   requestCode: string;
   items: WeatherApiItem[];
+  location: string;
 }
 
 // --- 날씨 데이터 (단기예보) ---
