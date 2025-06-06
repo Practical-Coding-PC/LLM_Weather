@@ -16,6 +16,7 @@ from forecast.utils.weather import get_weather_from_naver
 from forecast.utils.weather_kma import (
     get_current_weather, 
     get_forecast_weather, 
+    get_specific_hour_forecast,
     get_short_term_forecast,
     get_comprehensive_weather
 )
@@ -158,15 +159,23 @@ class ForecastService:
         current_hour = now.hour
         current_minute = now.minute
         
-        # 상대적 시간 표현
-        time_pattern = r'(\d+)시간?\s*[후뒤]'
-        m = re.search(time_pattern, message)
-        if m:
-            future_hours = int(m.group(1))
-            has_future = True
+        # 상대적 시간 표현 (띄어쓰기 허용, 다양한 표현 지원)
+        time_patterns = [
+            r'(\d+)\s*시간?\s*[후뒤]',  # "3시간 후", "3시간후"
+            r'(\d+)\s*시간?\s*뒤',        # "3시간 뒤"
+            r'(\d+)\s*시간?\s*뤮',        # "3시간 뤮"
+        ]
         
-        # 절대적 시간 표현
-        elif '오후' in message and '시' in message:
+        for pattern in time_patterns:
+            m = re.search(pattern, message)
+            if m:
+                future_hours = int(m.group(1))
+                has_future = True
+                print(f"🔍 시간 패턴 매칭: '{message}' → {future_hours}시간 후")
+                break
+        
+        # 절대적 시간 표현 (상대적 시간 패턴이 매칭되지 않은 경우에만)
+        if not has_future and '오후' in message and '시' in message:
             pm_pattern = r'오후\s*(\d{1,2})시(?:반)?'
             pm_match = re.search(pm_pattern, message)
             if pm_match:
@@ -183,7 +192,7 @@ class ForecastService:
                 future_hours = int(future_hours)
                 has_future = True
         
-        elif '오전' in message and '시' in message:
+        elif not has_future and '오전' in message and '시' in message:
             am_pattern = r'오전\s*(\d{1,2})시(?:반)?'
             am_match = re.search(am_pattern, message)
             if am_match:
@@ -199,7 +208,7 @@ class ForecastService:
                 has_future = True
         
         # 자연어 시간 표현
-        elif '내일' in message:
+        elif not has_future and '내일' in message:
             if '아침' in message:
                 future_hours = 24 + 7 - current_hour
             elif '오전' in message:
@@ -214,7 +223,7 @@ class ForecastService:
                 future_hours = 24
             has_future = True
         
-        elif '모레' in message:
+        elif not has_future and '모레' in message:
             future_hours = 48
             has_future = True
         
@@ -225,6 +234,12 @@ class ForecastService:
             weather_type = 'comprehensive'
         else:
             weather_type = 'current'
+
+        print(f"🔎 날씨 요청 분석 결과:")
+        print(f"  - 지역: {location}")
+        print(f"  - 날씨 타입: {weather_type}")
+        print(f"  - 미래 시간: {future_hours}")
+        print(f"  - 미래 시간 여부: {has_future}")
 
         return {
             "location": location,
@@ -254,19 +269,35 @@ class ForecastService:
         if self.KMA_SERVICE_KEY:
             try:
                 if weather_type == "current":
-                    return get_current_weather(
+                    # 현재 날씨 + 3시간 예보 조합
+                    current_weather = get_current_weather(
                         service_key=self.KMA_SERVICE_KEY, 
                         coords=coords,
                         location=location
                     )
+                    forecast_3h = get_forecast_weather(
+                        service_key=self.KMA_SERVICE_KEY, 
+                        hours=3,
+                        location=location
+                    )
+                    return f"{current_weather}\n\n=== 향후 3시간 예보 ===\n{forecast_3h}"
                 elif weather_type == 'forecast':
                     if future_hours <= 6:
-                        return get_forecast_weather(
-                            service_key=self.KMA_SERVICE_KEY, 
-                            hours=future_hours,
-                            location=location
-                        )
+                        # 특정 시간 후 날씨만 요청하는 경우
+                        if future_hours and weather_request.get('has_future_time'):
+                            return get_specific_hour_forecast(
+                                service_key=self.KMA_SERVICE_KEY, 
+                                hours=future_hours,
+                                location=location
+                            )
+                        else:
+                            return get_forecast_weather(
+                                service_key=self.KMA_SERVICE_KEY, 
+                                hours=future_hours,
+                                location=location
+                            )
                     elif future_hours <= 120:
+                        # 6시간 초과 시 단기예보 사용
                         return get_short_term_forecast(
                             service_key=self.KMA_SERVICE_KEY,
                             hours=future_hours,

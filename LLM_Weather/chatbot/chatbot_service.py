@@ -11,6 +11,8 @@ from repositories.chat_repository import ChatRepository
 from repositories.chat_message_repository import ChatMessageRepository
 
 from chatbot.utils.cctv_utils import find_nearest_cctv
+from chatbot.gemini_functions import create_function_calling_model
+from chatbot.function_handler import WeatherFunctionHandler
 from forecast.forecast_service import ForecastService
 
 # urllib3 경고 무시 (macOS LibreSSL 호환성 문제)
@@ -30,10 +32,12 @@ class ChatbotService:
         # ForecastService 인스턴스 생성
         self.forecast_service = ForecastService()
         
-        # Gemini 모델 초기화
+        # Function Handler 생성
+        self.function_handler = WeatherFunctionHandler()
+        
+        # Gemini 모델 초기화 (Function Calling 지원)
         if self.GEMINI_API_KEY:
-            genai.configure(api_key=self.GEMINI_API_KEY, transport="rest")
-            self.model = genai.GenerativeModel("models/gemini-1.5-flash-latest")
+            self.model = create_function_calling_model(self.GEMINI_API_KEY)
         else:
             self.model = None
 
@@ -131,67 +135,13 @@ class ChatbotService:
                 # CCTV 요청 처리
                 bot_response = await self.get_cctv_info(user_message)
             elif is_weather_related:
-                # 날씨 요청 분석 및 처리
-                weather_request = self.forecast_service.analyze_weather_request(user_message)
-                weather_info = self.forecast_service.get_weather_info(weather_request)
-                
                 # 이전 대화 기록 조회
                 recent_messages = ChatMessageRepository.get_last_n_messages(chat_id, 20)
                 
-                conversation_history = ""
-                if recent_messages:
-                    history_lines = []
-                    for msg in recent_messages:
-                        role_name = "사용자" if msg['role'] == 'user' else "챗봇"
-                        history_lines.append(f"{role_name}: {msg['content']}")
-                    conversation_history = "\n".join(history_lines)
-                
-                location_name = weather_request['location']
-                
-                # 간결한 날씨 응답을 위한 프롬프트
-                if conversation_history:
-                    prompt = f"""
-이전 대화:
-{conversation_history}
-
-사용자 질문: "{user_message}"
-
-실제 날씨 데이터:
-{weather_info}
-
-조건:
-1. 다음 형식들은 사용자의 질문에 맞게 잘 삽입해주세요. (기온, 날씨상태[맑은지 뭐한지], 강수확률, 습도)
-2. 간결하고 명백한 답변
-3. 친근한 말투
-{location_name}
-"""
-                else:
-                    prompt = f"""
-사용자 질문: "{user_message}"
-
-실제 날씨 데이터:
-{weather_info}
-
-조건:
-1. 다음 형식들은 사용자의 질문에 맞게 잘 삽입해주세요. (기온, 날씨상태[맑은지 뭐한지], 강수확률, 습도)
-2. 간결하고 명백한 답변
-3. 친근한 말투
-{location_name}
-"""
-                
-                try:
-                    response = self.model.generate_content(prompt)
-                    bot_response = response.text.strip()
-                    
-                    # Gemini가 여전히 장황하게 답변하면 강제로 간결하게 만들기
-                    if len(bot_response) > 150 or '│' in bot_response or '안녕' in bot_response:
-                        # 강제로 간결한 형식으로 변경
-                        bot_response = f"{location_name}: 기온 20°C, 맑음, 강수확률 0%, 습도 50%"
-                        
-                except Exception as e:
-                    print(f"Gemini API 오류: {e}")
-                    bot_response = f"{location_name} 날씨 정보:\n\n{weather_info}"
-            
+                # 날씨 요청을 Function Calling으로 처리
+                bot_response = await self.handle_weather_with_function_calling(
+                    user_message, recent_messages
+                )
             else:
                 # 날씨와 무관한 질문에 대한 응답
                 recent_messages = ChatMessageRepository.get_last_n_messages(chat_id, 20)
@@ -274,4 +224,108 @@ class ChatbotService:
         chats = ChatRepository.get_by_user_id(user_id)
         return {"user_id": user_id, "chats": chats}
     
+    async def handle_weather_with_function_calling(self, user_message: str, recent_messages: list = None) -> str:
+        """
+        Function Calling을 사용해서 날씨 요청을 처리합니다
+        """
+        try:
+            # 대화 기록 구성
+            conversation_history = ""
+            if recent_messages:
+                history_lines = []
+                for msg in recent_messages:
+                    role_name = "사용자" if msg['role'] == 'user' else "챗봇"
+                    history_lines.append(f"{role_name}: {msg['content']}")
+                conversation_history = "\n".join(history_lines)
+            
+            # Function Calling을 위한 프롬프트
+            system_prompt = """당신은 날씨 전문 AI 어시스턴트입니다.
+사용자의 날씨 질문을 정확히 분석하고 적절한 날씨 함수를 호출해 주세요.
+
+지원 지역: 춘천, 노원, 서울, 효자동
+
+함수 선택 규칙:
+1. "현재 날씨", "지금 날씨", "오늘 날씨", "날씨 어때?" → get_current_weather
+2. "N시간 후" (1-6시간) → get_specific_hour_forecast 
+3. "N시간 후" (7-120시간) → get_short_term_forecast
+4. "종합", "자세히", "전체", "이번 주" → get_comprehensive_weather
+
+중요: 지역명을 정확하게 추출하고, 시간 정보가 있으면 반드시 hours 파라미터를 전달하세요.
+함수 호출 후 결과를 친근하고 자연스럽게 요약해주세요."""
+            
+            if conversation_history:
+                full_prompt = f"{system_prompt}\n\n이전 대화:\n{conversation_history}\n\n사용자: {user_message}"
+            else:
+                full_prompt = f"{system_prompt}\n\n사용자: {user_message}"
+            
+            print(f"🤖 Function Calling 시작: {user_message}")
+            
+            # Gemini에게 메시지 전송
+            response = self.model.generate_content(full_prompt)
+            
+            # Function Call이 있는지 확인
+            if response.candidates[0].content.parts:
+                for part in response.candidates[0].content.parts:
+                    if hasattr(part, 'function_call') and part.function_call:
+                        # Function Call 실행
+                        function_name = part.function_call.name
+                        function_args = {}
+                        
+                        # 인자 추출
+                        for key, value in part.function_call.args.items():
+                            function_args[key] = value
+                        
+                        print(f"🔥 Function Call 세부사항:")
+                        print(f"  - 함수명: {function_name}")
+                        print(f"  - 인자: {function_args}")
+                        
+                        # 함수 실행
+                        function_result = self.function_handler.execute_function(
+                            function_name, function_args
+                        )
+                        
+                        print(f"🌟 Function 결과 내용:")
+                        print(f"  - 결과 길이: {len(function_result)} 문자")
+                        print(f"  - 결과 미리보기: {function_result[:100]}...")
+                        
+                        # 결과를 Gemini에게 다시 전송해서 자연스러운 응답 생성
+                        final_prompt = f"""사용자 질문: "{user_message}"
+
+날씨 데이터:
+{function_result}
+
+위 날씨 데이터를 바탕으로 사용자의 질문에 정확하고 친근하게 답변해주세요.
+
+답변 가이드라인:
+- 사용자가 묻는 시간대의 날씨에 집중해서 답변
+- 기온, 하늘상태, 강수확률 등 핵심 정보 포함
+- 친근하고 자연스러운 말투
+- 100-150자 내외로 간결하게 작성
+- 이모지나 기호 사용하여 더 친근하게"""
+                        
+                        # 새로운 모델 인스턴스로 최종 응답 생성 (Function Calling 없이)
+                        import google.generativeai as genai
+                        simple_model = genai.GenerativeModel("models/gemini-1.5-flash-latest")
+                        final_response = simple_model.generate_content(final_prompt)
+                        
+                        return final_response.text.strip()
+                
+                # Function Call이 없으면 일반 텍스트 응답
+                if response.text:
+                    return response.text.strip()
+            
+            return "죄송합니다. 날씨 정보를 가져오는데 문제가 발생했습니다."
+            
+        except Exception as e:
+            print(f"Function Calling 오류: {e}")
+            # Fallback: 기존 방식으로 처리
+            weather_request = self.forecast_service.analyze_weather_request(user_message)
+            weather_info = self.forecast_service.get_weather_info(weather_request)
+            return f"날씨 정보:\n\n{weather_info}"
+    
+    def get_supported_locations(self) -> Dict[str, Any]:
+        """
+        지원되는 지역 목록을 반환한다.
+        """
+        return self.forecast_service.get_supported_locations()
  

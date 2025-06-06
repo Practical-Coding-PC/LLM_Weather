@@ -22,7 +22,10 @@ from forecast.push_weather_notification import push_weather_notification
 # urllib3 경고 무시 (macOS LibreSSL 호환성 문제)
 warnings.filterwarnings("ignore", message="urllib3 v2 only supports OpenSSL 1.1.1+")
 
-# Service 인스턴스 생성
+# 환경변수를 먼저 로드
+load_dotenv()
+
+# Service 인스턴스 생성 (환경변수 로드 후)
 chatbot_service = ChatbotService()
 forecast_service = ForecastService()
 
@@ -55,9 +58,6 @@ scheduler = BackgroundScheduler()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # FastAPI를 구동할 때, 환경 변수를 로드한다.
-    load_dotenv()
-
     # 날씨 알림 스케줄러 설정 (30분마다)
     scheduler.add_job(
         push_weather_notification,

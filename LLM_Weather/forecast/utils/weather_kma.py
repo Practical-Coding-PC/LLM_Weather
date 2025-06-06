@@ -164,23 +164,49 @@ def get_coordinates_for_weather(location: str) -> Optional[Dict]:
     }
 
 def get_base_time() -> str:
-    """현재 시간 기준으로 적절한 base_time 반환 (단순화)"""
+    """현재 시간 기준으로 적절한 base_time 반환 (개선된 버전)"""
     now = get_korean_time()
+    current_hour = now.hour
+    current_minute = now.minute
     
-    # 초단기실황은 매시 정각, 10분 이후 API 제공
-    # 단순하게 현재 시간 사용
-    return now.strftime('%H00')
+    # 매시 정각에 발표되고 10분 이후에 API 제공
+    # 더 보수적으로 15분 이후부터 사용
+    if current_minute >= 15:
+        # 현재 시간 사용
+        base_time = f"{current_hour:02d}00"
+    else:
+        # 이전 시간 사용
+        if current_hour == 0:
+            base_time = "2300"  # 전날 23시
+        else:
+            base_time = f"{current_hour-1:02d}00"
+    
+    print(f"🕰️ base_time 계산: 현재 {now.strftime('%H:%M')} → {base_time} 사용")
+    return base_time
 
 def get_forecast_base_time() -> str:
-    """초단기예보용 base_time 반환 (단순화된 버전)"""
+    """초단기예보용 base_time 반환 (개선된 버전)"""
     now = get_korean_time()
+    current_hour = now.hour
+    current_minute = now.minute
     
     # 매시 30분에 발표되고 40-45분에 API 제공
-    # 단순하게 현재 시간 사용
-    if now.minute >= 30:
-        return now.strftime('%H30')
+    # 더 보수적으로 50분 이후부터 30분 데이터 사용
+    if current_minute >= 50:
+        # 현재 시간의 30분 사용
+        base_time = f"{current_hour:02d}30"
+    elif current_minute >= 20:
+        # 현재 시간의 00분 사용
+        base_time = f"{current_hour:02d}00"
     else:
-        return now.strftime('%H00')
+        # 이전 시간의 30분 사용
+        if current_hour == 0:
+            base_time = "2330"  # 전날 23:30
+        else:
+            base_time = f"{current_hour-1:02d}30"
+    
+    print(f"🕰️ forecast_base_time 계산: 현재 {now.strftime('%H:%M')} → {base_time} 사용")
+    return base_time
 
 def parse_weather_category(category: str, value: str) -> str:
     """기상청 코드를 사람이 읽기 쉬운 형태로 변환"""
@@ -256,8 +282,17 @@ def get_current_weather(
         location_name = coord_info['full_address']
         print(f"📍 {location} → {location_name} (격자: {grid_x}, {grid_y}) [CSV 검색: {'✅' if coord_info['found_in_csv'] else '❌'}]")
 
-    base_date = get_korean_time().strftime("%Y%m%d")
+    # base_time 계산로 base_date 조정
+    now = get_korean_time()
     base_time = get_base_time()
+    
+    # base_time이 23시이고 현재가 자정 이후라맴 전날 날짜 사용
+    if base_time == "2300" and now.hour < 12:
+        base_date = (now - timedelta(days=1)).strftime("%Y%m%d")
+    else:
+        base_date = now.strftime("%Y%m%d")
+    
+    print(f"📅 사용할 날짜/시간: {base_date} {base_time}")
 
     url = "http://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getUltraSrtNcst"
     params = {
@@ -272,12 +307,22 @@ def get_current_weather(
     }
 
     try:
+        print(f"🌐 기상청 API 호출 시작: {url}")
+        print(f"📊 파라미터: {params}")
+        
         resp = requests.get(url, params=params, timeout=10)
+        print(f"📡 HTTP 응답 코드: {resp.status_code}")
+        
         resp.raise_for_status()
         data = resp.json()
+        
+        print(f"📝 API 응답 체크:")
+        print(f"  - resultCode: {data.get('response', {}).get('header', {}).get('resultCode')}")
+        print(f"  - resultMsg: {data.get('response', {}).get('header', {}).get('resultMsg')}")
 
         if data["response"]["header"]["resultCode"] != "00":
-            return f"{location_name}의 날씨 정보를 가져오는데 실패했습니다."
+            error_msg = data["response"]["header"].get("resultMsg", "알 수 없는 오류")
+            return f"{location_name}의 날씨 정보를 가져오는데 실패했습니다. (오류: {error_msg})"
 
         items = data["response"]["body"]["items"]["item"]
 
@@ -322,14 +367,142 @@ def get_forecast_weather(
     
     print(f"📍 {location} → {location_name} (격자: {grid_x}, {grid_y}) [CSV 검색: {'✅' if coord_info['found_in_csv'] else '❌'}]")
 
-    base_date = get_korean_time().strftime('%Y%m%d')
+    # base_time 계산로 base_date 조정
+    now = get_korean_time()
     base_time = get_forecast_base_time()
+    
+    # base_time이 23:30이고 현재가 자정 이후라맴 전날 날짜 사용
+    if base_time == "2330" and now.hour < 12:
+        base_date = (now - timedelta(days=1)).strftime('%Y%m%d')
+    else:
+        base_date = now.strftime('%Y%m%d')
+    
+    print(f"📅 예보 사용할 날짜/시간: {base_date} {base_time}")
 
     url = "http://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getUltraSrtFcst"
     params = {
         "serviceKey": service_key,
         "dataType": "JSON",
         "numOfRows": 60,  # 보통 6시간 * 10항목
+        "pageNo": 1,
+        "base_date": base_date,
+        "base_time": base_time,
+        "nx": grid_x,
+        "ny": grid_y,
+    }
+
+    try:
+        print(f"🌐 예보 API 호출 시작: {url}")
+        print(f"📊 예보 파라미터: {params}")
+        
+        resp = requests.get(url, params=params, timeout=10)
+        print(f"📡 예보 HTTP 응답 코드: {resp.status_code}")
+        
+        resp.raise_for_status()
+        data = resp.json()
+        
+        print(f"📝 예보 API 응답 체크:")
+        print(f"  - resultCode: {data.get('response', {}).get('header', {}).get('resultCode')}")
+        print(f"  - resultMsg: {data.get('response', {}).get('header', {}).get('resultMsg')}")
+        
+        if data["response"]["header"]["resultCode"] != "00":
+            error_msg = data["response"]["header"].get("resultMsg", "알 수 없는 오류")
+            return f"{location_name}의 예보 정보를 가져오는데 실패했습니다. (오류: {error_msg})"
+
+        items = data["response"]["body"]["items"]["item"]
+
+        # 항목들을 시간순으로 정렬
+        items_sorted = sorted(items, key=lambda x: x["fcstDate"] + x["fcstTime"])
+        
+        now = get_korean_time()
+        target_times = [(now + timedelta(hours=i)).strftime('%H%M') for i in range(1, hours + 1)]
+
+        forecast_texts = [f"{location_name} 향후 {hours}시간 예보:"]
+        for hour in target_times:
+            hour_data = [item for item in items_sorted if item["fcstTime"] == hour]
+            if not hour_data:
+                continue
+
+            # 시간별 데이터를 딕셔너리로 정리
+            hour_weather = {item["category"]: item["fcstValue"] for item in hour_data}
+            
+            # 시간 표시
+            time_display = f"{int(hour[:2])}시:"
+            weather_parts = []
+            
+            # 기온
+            if "TMP" in hour_weather:
+                weather_parts.append(f"기온 {hour_weather['TMP']}°C")
+            
+            # 하늘상태 
+            if "SKY" in hour_weather:
+                sky_desc = parse_weather_category('SKY', hour_weather['SKY'])
+                weather_parts.append(sky_desc)
+            
+            # 강수형태 (강수가 있을 때만)
+            if "PTY" in hour_weather and hour_weather['PTY'] != "0":
+                pty_desc = parse_weather_category('PTY', hour_weather['PTY'])
+                weather_parts.append(pty_desc)
+            
+            # 강수량 (있을 때만)
+            if "RN1" in hour_weather and hour_weather['RN1'] not in ("0", "-", ""):
+                rn1_desc = parse_weather_category('RN1', hour_weather['RN1'])
+                weather_parts.append(rn1_desc)
+            
+            # 습도
+            if "REH" in hour_weather:
+                weather_parts.append(f"습도 {hour_weather['REH']}%")
+            
+            # 풍속
+            if "WSD" in hour_weather:
+                weather_parts.append(f"풍속 {hour_weather['WSD']}m/s")
+            
+            # 최종 조합
+            if weather_parts:
+                forecast_texts.append(f"{time_display} {', '.join(weather_parts)}")
+
+        return "\n".join(forecast_texts)
+
+    except requests.exceptions.RequestException as e:
+        return f"{location_name}의 예보 정보를 가져오는데 실패했습니다. (네트워크 오류: {e})"
+    except Exception as e:
+        return f"{location_name}의 예보 정보를 파싱하는 데 실패했습니다. (데이터 오류: {e})"
+
+def get_specific_hour_forecast(
+    service_key: str,
+    hours: int = 3,
+    location: str = "춘천"
+) -> str:
+    """
+    특정 시간 후의 날씨만 반환 (N시간 후)
+    """
+    if not service_key:
+        return f"{location}의 예보 정보를 가져올 수 없습니다. (API 키 없음)"
+
+    # CSV에서 좌표 정보 가져오기
+    coord_info = get_coordinates_for_weather(location)
+    grid_x, grid_y = coord_info['grid_x'], coord_info['grid_y']
+    location_name = coord_info['full_address']
+    
+    print(f"📍 {location} → {location_name} (격자: {grid_x}, {grid_y}) [{hours}시간 후 예보]")
+
+    # base_time 계산로 base_date 조정
+    now = get_korean_time()
+    base_time = get_forecast_base_time()
+    
+    # base_time이 23:30이고 현재가 자정 이후라맴 전날 날짜 사용
+    if base_time == "2330" and now.hour < 12:
+        base_date = (now - timedelta(days=1)).strftime('%Y%m%d')
+    else:
+        base_date = now.strftime('%Y%m%d')
+    
+    print(f"📅 {hours}시간 후 사용할 날짜/시간: {base_date} {base_time}")
+
+    url = "http://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getUltraSrtFcst"
+    params = {
+        "serviceKey": service_key,
+        "dataType": "JSON",
+        "numOfRows": 60,
         "pageNo": 1,
         "base_date": base_date,
         "base_time": base_time,
@@ -346,27 +519,53 @@ def get_forecast_weather(
             return f"{location_name}의 예보 정보를 가져오는데 실패했습니다."
 
         items = data["response"]["body"]["items"]["item"]
-
-        # 항목들을 시간순으로 정렬
         items_sorted = sorted(items, key=lambda x: x["fcstDate"] + x["fcstTime"])
         
+        # 목표 시간 계산
         now = get_korean_time()
-        target_times = [(now + timedelta(hours=i)).strftime('%H%M') for i in range(1, hours + 1)]
+        target_time = now + timedelta(hours=hours)
+        target_hour = target_time.strftime('%H%M')
+        
+        # 해당 시간의 데이터 찾기
+        hour_data = [item for item in items_sorted if item["fcstTime"] == target_hour]
+        
+        if not hour_data:
+            return f"{location_name}의 {hours}시간 후 예보 데이터를 찾을 수 없습니다."
 
-        forecast_texts = [f"{location_name} 향후 {hours}시간 예보:"]
-        for hour in target_times:
-            hour_data = [item for item in items_sorted if item["fcstTime"] == hour]
-            if not hour_data:
-                continue
+        # 데이터를 딕셔너리로 정리
+        hour_weather = {item["category"]: item["fcstValue"] for item in hour_data}
+        
+        # 결과 구성
+        result = [f"{location_name} {hours}시간 후 ({target_time.strftime('%m월 %d일 %H시')}) 날씨:"]
+        
+        # 기온
+        if "TMP" in hour_weather:
+            result.append(f"🌡️ 기온: {hour_weather['TMP']}°C")
+        
+        # 하늘상태
+        if "SKY" in hour_weather:
+            sky_desc = parse_weather_category('SKY', hour_weather['SKY'])
+            result.append(f"☁️ {sky_desc}")
+        
+        # 강수형태 (강수가 있을 때만)
+        if "PTY" in hour_weather and hour_weather['PTY'] != "0":
+            pty_desc = parse_weather_category('PTY', hour_weather['PTY'])
+            result.append(f"🌧️ {pty_desc}")
+        
+        # 강수량 (있을 때만)
+        if "RN1" in hour_weather and hour_weather['RN1'] not in ("0", "-", ""):
+            rn1_desc = parse_weather_category('RN1', hour_weather['RN1'])
+            result.append(f"☔ {rn1_desc}")
+        
+        # 습도
+        if "REH" in hour_weather:
+            result.append(f"💧 습도: {hour_weather['REH']}%")
+        
+        # 풍속
+        if "WSD" in hour_weather:
+            result.append(f"💨 풍속: {hour_weather['WSD']} m/s")
 
-            desc = f"{int(hour[:2])}시:"
-            for item in hour_data:
-                cat, val = item["category"], item["fcstValue"]
-                if cat in ["PTY", "RN1", "REH", "TMP", "WSD"]:
-                    desc += f" {parse_weather_category(cat, val)},"
-            forecast_texts.append(desc.rstrip(","))
-
-        return "\n".join(forecast_texts)
+        return "\n".join(result)
 
     except requests.exceptions.RequestException as e:
         return f"{location_name}의 예보 정보를 가져오는데 실패했습니다. (네트워크 오류: {e})"
@@ -395,17 +594,24 @@ def get_short_term_forecast(
     now = get_korean_time()
     base_times = ['0200', '0500', '0800', '1100', '1400', '1700', '2000', '2300']
     
-    # 현재 시간 기준으로 가장 최근 발표된 단기예보 시간 찾기
+    # 현재 시간 기준으로 가장 최근 발표된 단기예보 시간 찾기 (더 보수적으로)
     current_hour = now.hour
-    base_time = '2300'  # 기본값
+    base_time = '2300'  # 기본값 (전날 23시)
     
+    # 발표 후 2시간 이후부터 사용 가능하도록 더 보수적으로 설정
     for i, bt in enumerate([2, 5, 8, 11, 14, 17, 20, 23]):
-        if current_hour >= bt + 1:  # 발표 후 1시간 이후부터 사용 가능
+        if current_hour >= bt + 2:  # 발표 후 2시간 이후부터 사용 가능
             base_time = base_times[i]
         else:
             break
-
-    base_date = now.strftime('%Y%m%d')
+    
+    # base_time이 23시이고 현재가 새벽이라맴 전날 날짜 사용
+    if base_time == '2300' and current_hour < 12:
+        base_date = (now - timedelta(days=1)).strftime('%Y%m%d')
+    else:
+        base_date = now.strftime('%Y%m%d')
+    
+    print(f"단기예보 사용: {base_date} {base_time} (현재: {now.strftime('%H:%M')})")
     
     # 단기예보 API 호출
     url = "http://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getVilageFcst"
