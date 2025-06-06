@@ -3,6 +3,7 @@ import { WeatherHeader } from "../components/weather-header";
 import { WeatherNewsContainer } from "./weather-news-container";
 import { HourlyForecast } from "../components/hourly-forecast";
 import { ChatAssistant } from "../components/chat-assistant";
+import { WeatherIndices } from "../components/weather-indices";
 import { useWeather } from "../lib/weather-context";
 import { getTemperatureGradient } from "../lib/utils";
 import {
@@ -284,6 +285,7 @@ export function WeatherDashboard() {
               }}
             />
             <HourlyForecast timeSlots={weatherData.timeSlots} />
+            <WeatherIndices slot={weatherData.timeSlots[0]} />
           </>
         )}
 
