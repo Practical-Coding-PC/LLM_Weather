@@ -3,11 +3,13 @@ import { ChatAssistant } from "./chat-assistant";
 
 type WeatherHeaderProps = {
   currentTemp: string;
+  location?: string;
   onNotificationClick: () => void;
 };
 
 export function WeatherHeader({
   currentTemp,
+  location,
   onNotificationClick,
 }: WeatherHeaderProps) {
   const [isSubscribed, setIsSubscribed] = useState(true);
@@ -45,6 +47,24 @@ export function WeatherHeader({
           <span className="text-6xl font-semibold text-gray-800 drop-shadow-sm">
             {currentTemp}
           </span>
+          {location && (
+            <div className="mt-2 flex items-center gap-1">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                className="text-gray-500"
+              >
+                <path
+                  d="M12 2C8.13 2 5 5.13 5 9C5 14.25 12 22 12 22S19 14.25 19 9C19 5.13 15.87 2 12 2ZM12 11.5C10.62 11.5 9.5 10.38 9.5 9S10.62 6.5 12 6.5S14.5 7.62 14.5 9S13.38 11.5 12 11.5Z"
+                  fill="currentColor"
+                />
+              </svg>
+              <span className="text-gray-600 text-lg">{location}</span>
+            </div>
+          )}
         </div>
       </div>
       <div className="flex flex-col justify-center items-end gap-2">
