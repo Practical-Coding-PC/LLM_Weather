@@ -2,12 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { WeatherNews } from "../components/weather-news";
-
-type NewsArticle = {
-  articleTitle: string;
-  articleSummary: string;
-  articleUrl: string;
-};
+import { getWeatherNews, type WeatherNewsItem } from "../lib/weather-api";
 
 interface WeatherNewsContainerProps {
   latitude: number;
@@ -18,33 +13,32 @@ export function WeatherNewsContainer({
   latitude,
   longitude,
 }: WeatherNewsContainerProps) {
-  const [newsArticles, setNewsArticles] = useState<NewsArticle[]>([]);
+  // Use WeatherNewsItem as the state type
+  const [newsArticles, setNewsArticles] = useState<WeatherNewsItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchNews = async () => {
+    const loadWeatherNews = async () => {
+      setLoading(true);
+      setError(null);
       try {
-        setLoading(true);
-        const response = await fetch(
-          `http://localhost:8000/weather/news?latitude=${latitude}&longitude=${longitude}`
-        );
-
-        if (!response.ok) {
-          throw new Error(`Failed to fetch news: ${response.status}`);
-        }
-
-        const data = await response.json();
-        setNewsArticles(data as NewsArticle[]);
+        const response = await getWeatherNews(latitude, longitude);
+        setNewsArticles(response);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "에러 발생");
+        const errorMessage =
+          err instanceof Error
+            ? err.message
+            : "뉴스를 불러오는데 실패했습니다.";
+        setError(errorMessage);
         console.error("날씨 뉴스 가져오기 에러:", err);
+        setNewsArticles([]); // Clear articles on error
       } finally {
         setLoading(false);
       }
     };
 
-    fetchNews();
+    loadWeatherNews();
   }, [latitude, longitude]);
 
   if (loading) {
@@ -77,19 +71,15 @@ export function WeatherNewsContainer({
           <div className="text-gray-700 font-medium">뉴스 기사가 없습니다.</div>
         </div>
       ) : (
-        newsArticles.map((article, index) => (
-          <a
-            key={index}
-            href={article.articleUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block"
-          >
-            <WeatherNews
-              newsTitle={article.articleTitle}
-              summary={article.articleSummary}
-            />
-          </a>
+        newsArticles.map((article, idx) => (
+          // Adapt props for WeatherNews component
+          // It expects newsTitle, summary, articleUrl
+          <WeatherNews
+            key={idx} // Use unique id from news item
+            newsTitle={article.title}
+            summary={article.summary} // Provide default for optional summary
+            linkUrl={article.link_url} // Use url field
+          />
         ))
       )}
     </div>

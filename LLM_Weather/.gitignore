@@ -175,3 +175,5 @@ cython_debug/
 
 # .env 파일 무시
 .env
+
+.DS_Store
