@@ -46,6 +46,8 @@ class CreateNotificationRequest(BaseModel):
     p256dh: str
     auth: str
 
+class NotificationTestRequest(BaseModel):
+    userId: str
 
 #====== FastAPI 요청 파트 ======
 
@@ -240,6 +242,57 @@ async def create_notification(request: CreateNotificationRequest):
     except Exception as e:
         print(f"알림 구독 생성 오류: {e}")
         raise HTTPException(status_code=500, detail="알림 구독 생성 중 오류가 발생했습니다.")
+
+@app.post("/notification-test")
+async def send_notification_test(request: NotificationTestRequest):
+    """
+    사용자에게 테스트 알림을 전송한다.
+    notifications 테이블에서 구독 정보를 가져와 Next.js의 /notify 엔드포인트로 요청을 보낸다.
+    """
+    try:
+        import httpx
+        
+        # 사용자 ID로 알림 구독 정보 조회
+        subscriptions = NotificationRepository.get_by_user_id(int(request.userId))
+        
+        if not subscriptions:
+            raise HTTPException(status_code=404, detail="해당 사용자의 알림 구독 정보를 찾을 수 없습니다.")
+        
+        # 첫 번째 (유일한) 구독 정보 가져오기
+        subscription = subscriptions[0]
+        
+        # webpush 구독 객체 구성
+        subscription_obj = {
+            "endpoint": subscription['endpoint'],
+            "p256dh": subscription['p256dh_key'],
+            "auth": subscription['auth_key']
+        }
+        
+        # Next.js /notify 엔드포인트로 POST 요청
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                "http://localhost:3001/notify",
+                json={
+                    "subscription": subscription_obj,
+                    "message": "곧 비나 눈이 올 수 있어요 ☔ 외출에 주의하세요!"
+                },
+                timeout=10.0
+            )
+            
+            if response.status_code != 200:
+                raise HTTPException(status_code=500, detail=f"알림 전송 실패: HTTP {response.status_code}")
+        
+        return {
+            "success": True,
+            "message": "테스트 알림을 성공적으로 전송했습니다."
+        }
+        
+    except HTTPException as e:
+        print(f"HTTPException 발생: {e}")
+        raise
+    except Exception as e:
+        print(f"알림 테스트 오류: {e}")
+        raise HTTPException(status_code=500, detail="알림 테스트 중 오류가 발생했습니다.")
 
 @app.get("/health")
 async def health_check():

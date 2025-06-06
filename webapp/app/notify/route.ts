@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import webpush, { PushSubscription } from "web-push";
+import webpush from "web-push";
 
 webpush.setVapidDetails(
   "https://getweather.app",
@@ -9,12 +9,22 @@ webpush.setVapidDetails(
 
 export async function POST(request: NextRequest) {
   const { subscription, message } = (await request.json()) as {
-    subscription: PushSubscription;
+    subscription: {
+      endpoint: string;
+      p256dh: string;
+      auth: string;
+    };
     message: string;
   };
 
   await webpush.sendNotification(
-    subscription,
+    {
+      endpoint: subscription.endpoint,
+      keys: {
+        p256dh: subscription.p256dh,
+        auth: subscription.auth,
+      },
+    },
     JSON.stringify({
       title: "날씨 알림",
       body: message,

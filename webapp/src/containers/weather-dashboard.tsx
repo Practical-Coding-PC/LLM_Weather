@@ -272,7 +272,6 @@ export function WeatherDashboard() {
                   if (!res.ok) {
                     throw new Error();
                   }
-                  alert("Subscribed to push notifications");
                 } catch (e) {
                   console.error(e);
                   alert("Failed to subscribe to push notifications");
