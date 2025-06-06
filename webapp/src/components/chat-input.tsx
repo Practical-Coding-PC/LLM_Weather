@@ -29,14 +29,14 @@ export function ChatInput({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex items-start gap-2">
+    <form onSubmit={handleSubmit} className="flex items-start gap-2 p-2">
       <div className="flex-1 relative">
         <textarea
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
-          className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400/50 focus:border-blue-400/50 resize-none min-h-[50px] max-h-[150px] overflow-auto placeholder-gray-500 text-gray-800 shadow-sm"
+          className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none resize-none min-h-[50px] max-h-[150px] text-sm overflow-auto placeholder-gray-500 text-gray-800 shadow-sm"
           rows={2}
           autoFocus
         />
@@ -44,7 +44,7 @@ export function ChatInput({
       <button
         type="submit"
         disabled={!message.trim() || disabled}
-        className={`p-2 rounded-full transition-colors w-10 h-10 flex items-center justify-center backdrop-blur-sm border shadow-sm ${
+        className={`rounded-full transition-colors w-9 h-9 flex items-center justify-center backdrop-blur-sm border shadow-sm ${
           !message.trim() || disabled
             ? "bg-gray-300/50 text-gray-500 border-gray-300/30"
             : "bg-blue-500/80 text-white hover:bg-blue-600/80 border-blue-400/30"

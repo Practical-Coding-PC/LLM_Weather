@@ -240,23 +240,19 @@ export function Chat() {
       </div>
 
       {/* 입력 영역 */}
-      <div className="border-t border-white/20 p-4">
-        <div className="bg-white/30 backdrop-blur-sm rounded-lg p-4">
-          <ChatInput
-            onSendMessage={handleSendMessage}
-            disabled={
-              status === "sending" ||
-              status === "responding" ||
-              Number.isNaN(userId)
-            }
-            placeholder={
-              Number.isNaN(userId)
-                ? "사용자 ID를 설정 중입니다..."
-                : "날씨나 CCTV에 대해 궁금한 것을 물어보세요..."
-            }
-          />
-        </div>
-      </div>
+      <ChatInput
+        onSendMessage={handleSendMessage}
+        disabled={
+          status === "sending" ||
+          status === "responding" ||
+          Number.isNaN(userId)
+        }
+        placeholder={
+          Number.isNaN(userId)
+            ? "사용자 ID를 설정 중입니다..."
+            : "날씨나 CCTV에 대해 궁금한 것을 물어보세요..."
+        }
+      />
     </div>
   );
 }
