@@ -8,11 +8,18 @@ import React, {
   ReactNode,
 } from "react";
 
+interface Coordinates {
+  latitude: number;
+  longitude: number;
+}
+
 interface WeatherContextType {
   currentTemp: number;
   setCurrentTemp: (temp: number) => void;
   location: string;
   setLocation: (location: string) => void;
+  coordinates: Coordinates | null;
+  setCoordinates: (coordinates: Coordinates | null) => void;
   userId: number | undefined;
 }
 
@@ -27,6 +34,7 @@ export const WeatherProvider: React.FC<WeatherProviderProps> = ({
 }) => {
   const [currentTemp, setCurrentTemp] = useState<number>(20); // 기본값 20도
   const [location, setLocation] = useState<string>("현재 위치");
+  const [coordinates, setCoordinates] = useState<Coordinates | null>(null);
   const [userId, setUserId] = useState<number>();
 
   // localStorage에서 userId 불러오기 또는 생성하기
@@ -65,6 +73,8 @@ export const WeatherProvider: React.FC<WeatherProviderProps> = ({
         setCurrentTemp,
         location,
         setLocation,
+        coordinates,
+        setCoordinates,
         userId,
       }}
     >

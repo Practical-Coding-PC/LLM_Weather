@@ -62,7 +62,7 @@ const convertAPIMessageToUIMessage = (apiMessage: APIChatMessage): Message => {
 };
 
 export function Chat() {
-  const { currentTemp: weatherTemp, userId } = useWeather();
+  const { currentTemp: weatherTemp, userId, coordinates } = useWeather();
   const [status, setStatus] = useState<"idle" | "sending" | "responding">(
     "idle"
   );
@@ -131,6 +131,8 @@ export function Chat() {
         message: text,
         user_id: userId?.toString() || "",
         chat_id: chatId || undefined,
+        latitude: coordinates?.latitude || 0,
+        longitude: coordinates?.longitude || 0,
       });
 
       // 첫 번째 메시지인 경우 chatId 설정

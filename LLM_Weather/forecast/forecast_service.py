@@ -13,6 +13,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from forecast.utils.ultra_short_term_forecast import fetch_ultra_short_term_forecast
 from forecast.utils.short_term_forecast import fetch_short_term_forecast
 from forecast.utils.weather import get_weather_from_naver
+from forecast.utils.latlon_to_grid import latlon_to_grid
 from forecast.utils.weather_kma import (
     get_current_weather, 
     get_forecast_weather, 
@@ -249,6 +250,23 @@ class ForecastService:
         weather_type = weather_request['weather_type']
         future_hours = weather_request.get('future_hours', 6)
         coords = weather_request.get('coords')
+        use_coordinates = weather_request.get('use_coordinates', False)
+        
+        # 위도/경도 좌표인 경우 격자 좌표로 변환
+        if use_coordinates and coords and len(coords) == 2:
+            try:
+                lat, lon = coords
+                grid_x, grid_y = latlon_to_grid(lat, lon)
+                coords = (grid_x, grid_y)
+                print(f"위도/경도 ({lat}, {lon})을 격자 좌표 ({grid_x}, {grid_y})로 변환")
+            except Exception as e:
+                print(f"좌표 변환 오류: {e}")
+                # 변환 실패 시 네이버 크롤링으로 폴백
+                try:
+                    weather_info = get_weather_from_naver(location)
+                    return f"{location}의 날씨 정보:\n{weather_info}\n\n⚠️ 좌표 변환 실패로 네이버 날씨를 사용했습니다."
+                except Exception as e:
+                    return f"{location}의 날씨 정보를 가져오는데 실패했습니다."
         
         # 기상청 API 사용
         if self.KMA_SERVICE_KEY:

@@ -99,11 +99,9 @@ export function WeatherDashboard() {
     userId,
     setCurrentTemp,
     setLocation: setWeatherLocation,
+    coordinates,
+    setCoordinates,
   } = useWeather();
-  const [location, setLocation] = useState<{
-    latitude: number;
-    longitude: number;
-  } | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [weatherData, setWeatherData] = useState<{
     location: string;
@@ -199,7 +197,7 @@ export function WeatherDashboard() {
           latitude: position.coords.latitude,
           longitude: position.coords.longitude,
         };
-        setLocation(newLocation);
+        setCoordinates(newLocation);
         fetchAndSetWeatherData(newLocation.latitude, newLocation.longitude);
       },
       (error) => {
@@ -223,7 +221,7 @@ export function WeatherDashboard() {
         maximumAge: 300000, // 5분간 캐시된 위치 사용
       }
     );
-  }, [setCurrentTemp, setWeatherLocation]);
+  }, [setCurrentTemp, setWeatherLocation, setCoordinates]);
 
   const backgroundGradient = weatherData
     ? getTemperatureGradient(weatherData.timeSlots[0]?.temp || 20)
@@ -315,10 +313,10 @@ export function WeatherDashboard() {
 
         <div className="h-8" />
 
-        {location && !isLoadingWeather && (
+        {coordinates && !isLoadingWeather && (
           <WeatherNewsContainer
-            latitude={location.latitude}
-            longitude={location.longitude}
+            latitude={coordinates.latitude}
+            longitude={coordinates.longitude}
           />
         )}
 

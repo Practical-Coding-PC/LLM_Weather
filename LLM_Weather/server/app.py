@@ -31,6 +31,8 @@ class ChatRequest(BaseModel):
     message: str
     user_id: str = "default_user"
     chat_id: int = None
+    latitude: float = None
+    longitude: float = None
 
 class ChatResponse(BaseModel):
     reply: str
@@ -141,7 +143,9 @@ async def chat(request: ChatRequest) -> ChatResponse:
         result = await chatbot_service.process_message(
             message=request.message,
             user_id=request.user_id,
-            chat_id=request.chat_id
+            chat_id=request.chat_id,
+            latitude=request.latitude,
+            longitude=request.longitude
         )
         
         return ChatResponse(reply=result["reply"], chat_id=result["chat_id"])
