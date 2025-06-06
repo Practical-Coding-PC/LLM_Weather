@@ -6,6 +6,7 @@ import aiohttp
 import os
 
 from forecast.utils.latlon_to_grid import latlon_to_grid
+from kakaoapi.get_city_from_coordinates import get_city_from_coordinates
 
 # 초단기예보 발표 시각 이후 API 제공 시각 리스트.
 API_time_list = [int(f"{hour}45") for hour in range(24)]
@@ -83,6 +84,8 @@ async def fetch_ultra_short_term_forecast(latitude: float, longitude: float) -> 
         "ny": ny # 경도
     }
 
+    location = await get_city_from_coordinates(latitude, longitude)
+
     async with aiohttp.ClientSession() as session:
         async with session.get(url=url, params=params) as response:
                 if response.status == 200:
@@ -98,11 +101,13 @@ async def fetch_ultra_short_term_forecast(latitude: float, longitude: float) -> 
 
                     return {
                          "requestCode": "200",
-                         "items": result
+                         "items": result,
+                         "location": location
                     }
                 
                 else:
                     return {
                         "requestCode": str(response.status),
-                        "items": []
+                        "items": [],
+                        "location": location
                     }
