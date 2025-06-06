@@ -31,9 +31,9 @@ export const WeatherProvider: React.FC<WeatherProviderProps> = ({
 
   // localStorage에서 userId 불러오기 또는 생성하기
   useEffect(() => {
-    const storedUserId = Number(localStorage.getItem("userId"));
+    let storedUserId = localStorage.getItem("userId");
 
-    if (Number.isNaN(storedUserId)) {
+    if (!storedUserId) {
       // userId가 없으면 랜덤한 값 생성
       const location = "춘천";
 
@@ -46,15 +46,17 @@ export const WeatherProvider: React.FC<WeatherProviderProps> = ({
       })
         .then((res) => res.json() as Promise<{ user_id: number }>)
         .then((data) => {
+          storedUserId = data.user_id.toString();
           setUserId(data.user_id);
         })
         .catch((err) => {
           console.error(err);
+          throw err;
         });
-      localStorage.setItem("userId", storedUserId?.toString());
+      localStorage.setItem("userId", storedUserId ?? "");
     }
 
-    setUserId(storedUserId);
+    setUserId(Number(storedUserId));
   }, []);
 
   return (
