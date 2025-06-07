@@ -126,7 +126,7 @@ async def get_short_term_weather_forecast(latitude: float, longitude: float):
     Returns:
         dict: 단기 날씨 예보 정보를 기록한 dictionary.
     """
-    return await forecast_service.get_short_term_forecast(latitude, longitude)
+    return await forecast_service.get_short_term_forecast(latitude, longitude, 100)
 
 @app.post("/api/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest) -> ChatResponse:

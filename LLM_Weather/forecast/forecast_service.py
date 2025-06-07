@@ -23,8 +23,8 @@ class ForecastService:
         """
         return fetch_ultra_short_term_forecast(latitude, longitude)
 
-    def get_short_term_forecast(self, latitude: float, longitude: float) -> Dict[str, Any]:
+    def get_short_term_forecast(self, latitude: float, longitude: float, num_of_rows: int = 1000) -> Dict[str, Any]:
         """
         단기 예보 데이터를 반환한다.
         """
-        return fetch_short_term_forecast(latitude, longitude)
+        return fetch_short_term_forecast(latitude, longitude, num_of_rows)

@@ -37,7 +37,7 @@ def get_base_time(currentDate: int, currentTime: int) -> Tuple[str, str]:
         return f"{currentDate:04d}", f"{API_time_list[idx-1] - 10:04d}"
     
 
-async def fetch_short_term_forecast(latitude: float, longitude: float) -> Dict[str, Any]:
+async def fetch_short_term_forecast(latitude: float, longitude: float, num_of_rows: int = 1000) -> Dict[str, Any]:
     """
     주어진 위도와 경도에 대해 기상청 단기예보(OpenAPI)에서 최신 예보 데이터를 조회하여,
     요청 코드(requestCode)와 예보 데이터(items)를 포함한 딕셔너리로 반환한다.
@@ -45,12 +45,14 @@ async def fetch_short_term_forecast(latitude: float, longitude: float) -> Dict[s
     Args:
         latitude (float): 조회할 위치의 위도 값.
         longitude (float): 조회할 위치의 경도 값.
+        num_of_rows (int): 한 번에 요청할 데이터 개수 (기본값: 1000, 최대 1000).
 
     Returns:
         Dict[str, Any]: 
             - requestCode (str): 응답 코드(예: "200"은 성공, 그 외는 오류 코드).
             - items (List[Dict[str, Any]]): 예보 데이터 목록.
                 각 데이터는 fcstDate, fcstTime, category, fcstValue 필드로 구성됨.
+            - totalCount (int): 전체 데이터 개수.
     
     예외:
         API 호출 실패 시 requestCode에 상태 코드가 담기며, items는 빈 리스트로 반환됨.
@@ -66,14 +68,18 @@ async def fetch_short_term_forecast(latitude: float, longitude: float) -> Dict[s
     currentTime = datetime.now().strftime("%H%M")
     baseDate, baseTime = get_base_time(int(currentDate), int(currentTime))
 
-    print(baseDate, baseTime)
+    print(f"Base Date: {baseDate}, Base Time: {baseTime}")
 
      # 해당 위도, 경도를 기상청 격자 좌표로 변경
     nx, ny = latlon_to_grid(latitude, longitude)
 
+    # numOfRows는 최대 1000까지 가능
+    if num_of_rows > 1000:
+        num_of_rows = 1000
+
     params = {
         "serviceKey": serviceKey,
-        "numOfRows": "100",
+        "numOfRows": str(num_of_rows),
         "pageNo": "1",
         "dataType": "JSON",
         "base_date": baseDate,
@@ -86,8 +92,13 @@ async def fetch_short_term_forecast(latitude: float, longitude: float) -> Dict[s
         async with session.get(url=url, params=params) as response:
             if response.status == 200:
                 response_json = await response.json()
+                
+                body = response_json.get("response", {}).get("body", {})
+                items = body.get("items", {}).get("item", [])
+                total_count = body.get("totalCount", 0)
+                
+                print(f"총 데이터 개수: {total_count}, 현재 받은 개수: {len(items)}")
 
-                items = response_json.get("response", {}).get("body", {}).get("items", {}).get("item", [])
                 result = [{
                          "fcstDate": item.get("fcstDate"),
                          "fcstTime": item.get("fcstTime"),
@@ -97,11 +108,13 @@ async def fetch_short_term_forecast(latitude: float, longitude: float) -> Dict[s
 
                 return {
                         "requestCode": "200",
-                        "items": result
+                        "items": result,
+                        "totalCount": total_count
                 }
             
             else:
                 return {
                         "requestCode": str(response.status),
-                        "items": []
+                        "items": [],
+                        "totalCount": 0
                     }
