@@ -5,7 +5,6 @@ import { HourlyForecast } from "../components/hourly-forecast";
 import { ChatAssistant } from "../components/chat-assistant";
 import { WeatherIndices } from "../components/weather-indices";
 import { useWeather } from "../lib/weather-context";
-import { getTemperatureGradient } from "../lib/utils";
 import {
   getUltraShortTermWeather,
   getShortTermWeather,
@@ -111,6 +110,16 @@ export function WeatherDashboard() {
   const [isLoadingWeather, setIsLoadingWeather] = useState(false);
   const [weatherError, setWeatherError] = useState<string | null>(null);
   const [showStickyChat, setShowStickyChat] = useState(false);
+  
+  // 발표용 날씨 오버라이드 상태
+  const [weatherOverride, setWeatherOverride] = useState<{
+    enabled: boolean;
+    sky: number;
+    pty: number;
+    temp: number;
+  }>({ enabled: false, sky: 1, pty: 0, temp: 22 });
+  
+  const [showControls, setShowControls] = useState(false);
 
   // 스크롤 감지 함수
   useEffect(() => {
@@ -223,14 +232,221 @@ export function WeatherDashboard() {
     );
   }, [setCurrentTemp, setWeatherLocation, setCoordinates]);
 
-  const backgroundGradient = weatherData
-    ? getTemperatureGradient(weatherData.timeSlots[0]?.temp || 20)
-    : "from-blue-50 via-indigo-25 to-white";
+  // 현재 날씨 상태 (첫 번째 타임슬롯에서 가져오기 또는 오버라이드)
+  const currentWeather = weatherOverride.enabled 
+    ? weatherOverride 
+    : (weatherData?.timeSlots[0] || {
+        temp: 25, // 테스트용 기본값
+        sky: 4,   // 4: 흐림 (테스트)
+        pty: 0    // 0: 비/눈 없음
+      });
+
+  // 디버그용 로그
+  console.log('날씨 데이터:', weatherData);
+  console.log('현재 날씨:', currentWeather);
+
+  // 날씨에 따른 배경 색상 계산
+  const getWeatherBackground = () => {
+    const weather = currentWeather;
+    
+    console.log('배경 계산 중:', weather); // 디버그
+    
+    if (weather.pty > 0) {
+      // 비나 눈이 올 때 - 진한 회색
+      return "from-gray-600/60 via-slate-400/70 to-blue-300/80";
+    }
+    
+    if (weather.sky >= 3) {
+      // 구름많음, 흐림 - 회색조
+      return "from-gray-400/60 via-slate-300/70 to-gray-200/80";
+    }
+    
+    // 맑음이나 구름조금일 때는 기온에 따른 색상
+    if (weather.temp >= 30) return "from-red-200/80 via-orange-300/80 to-yellow-200/80";
+    if (weather.temp >= 25) return "from-orange-200/80 via-yellow-300/80 to-green-200/80";
+    if (weather.temp >= 20) return "from-yellow-200/80 via-green-300/80 to-blue-200/80";
+    if (weather.temp >= 15) return "from-green-200/80 via-blue-300/80 to-indigo-200/80";
+    if (weather.temp >= 10) return "from-blue-200/80 via-indigo-300/80 to-purple-200/80";
+    if (weather.temp >= 5) return "from-indigo-200/80 via-purple-300/80 to-blue-200/80";
+    return "from-purple-200/80 via-blue-300/80 to-indigo-200/80";
+  };
 
   return (
-    <div
-      className={`max-w-lg w-full mx-auto h-screen flex flex-col bg-gradient-to-br ${backgroundGradient} pb-16`}
-    >
+    <div className={`max-w-lg w-full mx-auto min-h-screen flex flex-col relative pb-16 bg-gradient-to-br ${getWeatherBackground()} transition-all duration-1000 ease-in-out`}>
+      {/* 발표용 컴트롤 토글 버튼 */}
+      <button
+        onClick={() => setShowControls(!showControls)}
+        className="fixed top-4 right-4 z-50 bg-black/20 hover:bg-black/30 text-white p-2 rounded-full transition-all"
+        title="발표용 컴트롤"
+      >
+        Test
+      </button>
+
+      {/* 발표용 컴트롤 패널 */}
+      {showControls && (
+        <div className="fixed top-16 right-4 z-50 bg-white/95 backdrop-blur-sm p-4 rounded-lg shadow-lg border max-w-xs">
+          
+          <div className="space-y-3">
+            {/* 오버라이드 대시니보드 */}
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={weatherOverride.enabled}
+                onChange={(e) => setWeatherOverride(prev => ({ ...prev, enabled: e.target.checked }))}
+                className="rounded"
+              />
+              <span className="text-sm font-medium">데모 모드</span>
+            </label>
+
+            {weatherOverride.enabled && (
+              <>
+                {/* 기온 */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    기온: {weatherOverride.temp}°C
+                  </label>
+                  <input
+                    type="range"
+                    min="-10"
+                    max="40"
+                    value={weatherOverride.temp}
+                    onChange={(e) => setWeatherOverride(prev => ({ ...prev, temp: parseInt(e.target.value) }))}
+                    className="w-full h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                  />
+                </div>
+
+                {/* 하늘상태 */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    하늘: {['', '맑음', '구름조금', '구름많음', '흐림'][weatherOverride.sky]}
+                  </label>
+                  <input
+                    type="range"
+                    min="1"
+                    max="4"
+                    value={weatherOverride.sky}
+                    onChange={(e) => setWeatherOverride(prev => ({ ...prev, sky: parseInt(e.target.value) }))}
+                    className="w-full h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                  />
+                </div>
+
+                {/* 강수형태 */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    강수: {['없음', '비', '비/눈', '눈', '소나기'][weatherOverride.pty]}
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="4"
+                    value={weatherOverride.pty}
+                    onChange={(e) => setWeatherOverride(prev => ({ ...prev, pty: parseInt(e.target.value) }))}
+                    className="w-full h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                  />
+                </div>
+
+                {/* 프리셋 버튼
+                <div className="pt-2 border-t">
+                  <div className="text-xs font-medium text-gray-700 mb-2">빠른 설정:</div>
+                  <div className="grid grid-cols-2 gap-1">
+                    <button
+                      onClick={() => setWeatherOverride(prev => ({ ...prev, sky: 1, pty: 0, temp: 30 }))}
+                      className="text-xs px-2 py-1 bg-yellow-100 hover:bg-yellow-200 rounded transition-colors"
+                    >
+                      ☀️ 맑음
+                    </button>
+                    <button
+                      onClick={() => setWeatherOverride(prev => ({ ...prev, sky: 4, pty: 0, temp: 18 }))}
+                      className="text-xs px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded transition-colors"
+                    >
+                      ☁️ 흐림
+                    </button>
+                    <button
+                      onClick={() => setWeatherOverride(prev => ({ ...prev, sky: 4, pty: 1, temp: 15 }))}
+                      className="text-xs px-2 py-1 bg-blue-100 hover:bg-blue-200 rounded transition-colors"
+                    >
+                      🌧️ 비
+                    </button>
+                    <button
+                      onClick={() => setWeatherOverride(prev => ({ ...prev, sky: 4, pty: 3, temp: -2 }))}
+                      className="text-xs px-2 py-1 bg-indigo-100 hover:bg-indigo-200 rounded transition-colors"
+                    >
+                      ❄️ 눈
+                    </button>
+                  </div>
+                </div> */}
+              </>
+            )}
+          </div>
+        </div>
+      )}
+      {/* 날씨 상태 정보
+      <div className="absolute top-4 left-4 z-50 bg-black/30 text-white p-2 rounded-lg text-xs font-mono">
+        T:{currentWeather.temp}°C | SKY:{currentWeather.sky} | PTY:{currentWeather.pty}
+        <div className="text-xs opacity-75">
+          {currentWeather.sky >= 3 ? '흐림/구름많음' : currentWeather.sky === 2 ? '구름조금' : '맑음'}
+        </div>
+      </div> */}
+
+      {/* 날씨 애니메이션 요소들 */}
+      {currentWeather.sky <= 2 && currentWeather.pty === 0 && (
+        // 맑은 날씨일 때 태양
+        <div className="absolute top-12 right-8 w-16 h-16">
+          <div className="w-full h-full bg-yellow-300 rounded-full shadow-lg animate-pulse opacity-90">
+            <div className="w-full h-full bg-gradient-to-br from-yellow-200 to-orange-300 rounded-full"></div>
+          </div>
+          {/* 태양 광선 */}
+          {[...Array(8)].map((_, i) => (
+            <div
+              key={i}
+              className="absolute w-0.5 h-4 bg-yellow-300 opacity-60 animate-pulse"
+              style={{
+                top: '50%',
+                left: '50%',
+                transformOrigin: '50% 24px',
+                transform: `translate(-50%, -50%) rotate(${i * 45}deg)`,
+                animationDelay: `${i * 0.3}s`
+              }}
+            />
+          ))}
+        </div>
+      )}
+      
+      {currentWeather.sky >= 3 && (
+        // 구름많음/흐림일 때 구름
+        <>
+          <div className="absolute top-16 left-8 w-16 h-10 bg-white/70 rounded-full animate-bounce shadow-md" style={{animationDelay: '0s', animationDuration: '4s'}}>
+            <div className="absolute inset-0 bg-gray-100/50 rounded-full"></div>
+          </div>
+          <div className="absolute top-20 right-12 w-12 h-8 bg-white/60 rounded-full animate-bounce shadow-md" style={{animationDelay: '1s', animationDuration: '5s'}}>
+            <div className="absolute inset-0 bg-gray-100/40 rounded-full"></div>
+          </div>
+          <div className="absolute top-32 left-16 w-14 h-9 bg-white/80 rounded-full animate-bounce shadow-md" style={{animationDelay: '2s', animationDuration: '6s'}}>
+            <div className="absolute inset-0 bg-gray-100/60 rounded-full"></div>
+          </div>
+          <div className="absolute top-24 right-6 w-10 h-7 bg-white/50 rounded-full animate-bounce shadow-md" style={{animationDelay: '1.5s', animationDuration: '4.5s'}}>
+            <div className="absolute inset-0 bg-gray-100/30 rounded-full"></div>
+          </div>
+        </>
+      )}
+      
+      {currentWeather.pty > 0 && (
+        // 비/눈이 올 때 효과
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          {[...Array(30)].map((_, i) => (
+            <div
+              key={i}
+              className={`absolute ${currentWeather.pty === 3 ? 'w-1 h-1 bg-white rounded-full' : 'w-0.5 h-6 bg-blue-400 opacity-70'} animate-pulse`}
+              style={{
+                left: `${Math.random() * 100}%`,
+                top: `${Math.random() * 80 + 10}%`,
+                animationDelay: `${Math.random() * 2}s`,
+                animationDuration: `${1 + Math.random() * 2}s`
+              }}
+            />
+          ))}
+        </div>
+      )}
       {/* Sticky Chat Assistant */}
       {showStickyChat && (
         <div className="fixed top-0 left-0 right-0 z-50 p-4 bg-white/80 backdrop-blur-md border-b border-gray-200/50">
@@ -240,7 +456,7 @@ export function WeatherDashboard() {
         </div>
       )}
 
-      <div className={showStickyChat ? "mt-20" : ""}>
+      <div className={`relative z-10 ${showStickyChat ? "mt-20" : ""}`}>
         {weatherData && (
           <>
             <WeatherHeader
