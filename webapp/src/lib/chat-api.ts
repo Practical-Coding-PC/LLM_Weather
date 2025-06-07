@@ -8,6 +8,8 @@ export interface ChatRequest {
   message: string;
   user_id: string;
   chat_id?: number;
+  latitude: number;
+  longitude: number;
 }
 
 export interface ChatResponse {
