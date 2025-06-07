@@ -1,74 +1,17 @@
 import os
 import requests
-import pandas as pd
 import math
+import sys
 from typing import Dict, List, Optional
 from dotenv import load_dotenv
 
+# 상위 디렉토리의 모듈들을 import하기 위해 경로 추가
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
+from kakaoapi.get_coordinates_by_city import get_coordinates_by_city
+
 # .env 파일 로드
 load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.env'))
-
-# CSV 파일 경로
-CSV_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "forecast", "utils", "초단기예보-춘천-노원-csv.csv")
-
-# 지역 키워드 매핑
-REGION_KEYWORDS = {
-    "춘천": "춘천시",
-    "효자동": "효자1동",
-    "효자": "효자1동", 
-    "노원": "노원구",
-    "서울": "서울특별시",
-    "월계동": "월계1동",
-    "중계동": "중계본동",
-    "상계동": "상계1동",
-    "하계동": "하계1동"
-}
-
-def _convert_coord(value):
-    """
-    CSV 컬럼이 도(°) 단위면 그대로,
-    초/100 단위면 360000으로 나눠 도로 환산한다.
-    """
-    if value < 200:  # 도 단위
-        return float(value)
-    # 초/100 단위면 도 단위로 변환
-    return float(value) / 360000
-
-def find_coords_by_keyword(location_text: str) -> Optional[Dict]:
-    """
-    지역 키워드로 좌표 찾기
-    """
-    try:
-        region_df = pd.read_csv(CSV_PATH, encoding="utf-8")
-    except Exception as e:
-        print(f"CSV 파일 읽기 오류: {e}")
-        return None
-    
-    for keyword, alias in REGION_KEYWORDS.items():
-        if keyword in location_text:
-            try:
-                # 2단계(시/구) 또는 3단계(동) 컬럼에서 검색
-                matching_rows = region_df[
-                    (region_df["2단계"].str.contains(alias, na=False)) |
-                    (region_df["3단계"].str.contains(alias, na=False))
-                ]
-                
-                if not matching_rows.empty:
-                    row = matching_rows.iloc[0]
-                    lat = _convert_coord(row["위도(초/100)"])
-                    lon = _convert_coord(row["경도(초/100)"])
-                    
-                    return {
-                        "name": keyword,
-                        "lat": lat,
-                        "lon": lon,
-                        "full_name": f"{row['1단계']} {row['2단계']} {row.get('3단계', '')}"
-                    }
-            except Exception as e:
-                print(f"좌표 변환 오류 ({keyword}): {e}")
-                continue
-    
-    return None
 
 def calculate_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     """
@@ -89,7 +32,7 @@ def calculate_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> fl
     
     return distance
 
-async def fetch_cctv_list() -> List[Dict]:
+async def fetch_cctv_list(latitude: float, longitude: float) -> List[Dict]:
     """
     ITS API에서 CCTV 목록을 가져오기
     """
@@ -119,10 +62,10 @@ async def fetch_cctv_list() -> List[Dict]:
                 'apiKey': api_key,
                 'type': cctv_type,
                 'cctvType': '2',      # 동영상(mp4)
-                'minX': 124.61167,
-                'maxX': 131.87222,
-                'minY': 33.11028,
-                'maxY': 38.61111,
+                'minX': longitude - 0.1,
+                'maxX': longitude + 0.1,
+                'minY': latitude - 0.1,
+                'maxY': latitude + 0.1,
                 'getType': 'json',
             }
             
@@ -159,8 +102,23 @@ async def find_nearest_cctv(location_text: str) -> Optional[Dict]:
     """
     지역명을 기반으로 가장 가까운 CCTV 찾기
     """
-    # 1. 지역 좌표 찾기
-    location_info = find_coords_by_keyword(location_text)
+    # 1. 지역 좌표 찾기 (카카오 API 우선 사용)
+    location_info = None
+    location_name = location_text
+    
+    try:
+        # 카카오 API로 좌표 조회
+        coordinates = await get_coordinates_by_city(location_text)
+        location_info = {
+            'name': location_text,
+            'lat': coordinates['latitude'],
+            'lon': coordinates['longitude'],
+            'full_name': location_text
+        }
+        print(f"카카오 API로 위치 조회 성공: {location_text}")
+    except Exception as e:
+        print(f"카카오 API 조회 실패: {e}")
+    
     if not location_info:
         print(f"지역을 찾을 수 없습니다: {location_text}")
         return None
@@ -172,7 +130,7 @@ async def find_nearest_cctv(location_text: str) -> Optional[Dict]:
     print(f"검색 대상 지역: {location_name} ({target_lat:.6f}, {target_lon:.6f})")
     
     # 2. CCTV 목록 가져오기
-    cctvs = await fetch_cctv_list()
+    cctvs = await fetch_cctv_list(target_lat, target_lon)
     if not cctvs:
         return None
     
