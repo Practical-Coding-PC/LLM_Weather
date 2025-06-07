@@ -115,7 +115,7 @@ async def get_ultra_short_term_weather_forecast(latitude: float, longitude: floa
     return await forecast_service.get_ultra_short_term_forecast(latitude, longitude)
 
 @app.get("/weather/short_term")
-async def get_short_term_weather_forecast(latitude: float, longitude: float):
+async def get_short_term_weather_forecast(latitude: float, longitude: float, num_of_rows: int = 1000):
     """
     주어진 좌표의 단기 날씨 예보를 반환한다. (기상청 공공 API 활용)
 
@@ -126,7 +126,7 @@ async def get_short_term_weather_forecast(latitude: float, longitude: float):
     Returns:
         dict: 단기 날씨 예보 정보를 기록한 dictionary.
     """
-    return await forecast_service.get_short_term_forecast(latitude, longitude, 100)
+    return await forecast_service.get_short_term_forecast(latitude, longitude, num_of_rows)
 
 @app.post("/api/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest) -> ChatResponse:
