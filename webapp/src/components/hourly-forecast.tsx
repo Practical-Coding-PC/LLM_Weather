@@ -370,41 +370,79 @@ export function HourlyForecast({ timeSlots }: HourlyForecastProps) {
       <hr className="border-t border-gray-450 mx my-1" />
 
       {/* 평균 온도 및 날씨 요약 */}
-      <div className="mt-2 space-y-1">
-        <div className="text-center">
-          <div className="inline-flex items-center gap-2 rounded-full px-4 py-2">
-            <div
-              className="w-3 h-3 rounded-full"
-              style={{ backgroundColor: lineColor }}
-            />
-            <span className="text-lg font-medium text-gray-700">
-              평균 {avgTemp.toFixed(1)}°C
-            </span>
-            <span className="text-xs text-gray-500">
-              ({getTemperatureLabel(avgTemp)})
-            </span>
+      <div className="mt-6 space-y-3">
+        {/* 평균 기온 카드 */}
+        <div className="flex justify-center">
+          <div className="bg-white/40 backdrop-blur-md border border-white/30 rounded-2xl px-6 py-3 shadow-lg">
+            <div className="flex items-center gap-3">
+              <div
+                className="w-4 h-4 rounded-full shadow-md"
+                style={{ backgroundColor: lineColor }}
+              />
+              <span className="text-lg font-semibold text-gray-800">
+                평균 {avgTemp.toFixed(1)}°C
+              </span>
+              <span className="text-sm text-gray-600 bg-gray-100/60 px-2 py-1 rounded-full">
+                {getTemperatureLabel(avgTemp)}
+              </span>
+            </div>
           </div>
         </div>
 
-        {/* 바람 정보 요약 */}
-        <div className="flex justify-center">
-          <div className="px-3 py-2">
-            <div className="flex items-center gap-4 text-lg text-gray-600">
-              <span className="flex items-center gap-1">
-                🌪️ 바람:{" "}
-                {getWindDirection(
-                  timeSlots[0]?.windU || 0,
-                  timeSlots[0]?.windV || 0
-                )}
-              </span>
-              <span className="flex items-center gap-1">
-                💧 습도:{" "}
-                {Math.round(
-                  timeSlots.reduce((sum, slot) => sum + slot.humidity, 0) /
-                    timeSlots.length
-                )}
-                %
-              </span>
+        {/* 바람 & 습도 정보 카드 */}
+        <div className="grid grid-cols-2 gap-3">
+          {/* 바람 정보 */}
+          <div className="bg-gradient-to-br from-blue-50/80 to-cyan-50/80 backdrop-blur-sm border border-blue-200/40 rounded-xl p-4 shadow-md hover:shadow-lg transition-all duration-300">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                  <span className="text-lg">💨</span>
+                </div>
+                <span className="text-base font-semibold text-gray-800">바람</span>
+              </div>
+              <div className="flex items-baseline gap-2">
+                <span className="text-base font-semibold text-blue-700">
+                  {getWindDirection(
+                    timeSlots[0]?.windU || 0,
+                    timeSlots[0]?.windV || 0
+                  )}
+                </span>
+                <span className="text-xs text-gray-500">
+                  {getWindSpeed(
+                    timeSlots[0]?.windU || 0,
+                    timeSlots[0]?.windV || 0
+                  ).toFixed(1)} m/s
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* 습도 정보 */}
+          <div className="bg-gradient-to-br from-emerald-50/80 to-teal-50/80 backdrop-blur-sm border border-emerald-200/40 rounded-xl p-4 shadow-md hover:shadow-lg transition-all duration-300">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center">
+                  <span className="text-lg">💧</span>
+                </div>
+                <span className="text-base font-semibold text-gray-800">습도</span>
+              </div>
+              <div className="flex items-baseline gap-2">
+                <span className="text-base font-semibold text-emerald-700">
+                  {Math.round(
+                    timeSlots.reduce((sum, slot) => sum + slot.humidity, 0) /
+                      timeSlots.length
+                  )}%
+                </span>
+                <span className="text-xs text-gray-500">
+                  {(() => {
+                    const avg = Math.round(
+                      timeSlots.reduce((sum, slot) => sum + slot.humidity, 0) /
+                        timeSlots.length
+                    );
+                    return avg >= 70 ? "습함" : avg >= 40 ? "적당" : "건조";
+                  })()}
+                </span>
+              </div>
             </div>
           </div>
         </div>
